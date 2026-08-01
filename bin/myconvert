@@ -1,0 +1,503 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Optional: path to a Python venv activate script that has `marker` installed.
+# Only --force-marker needs it; every other conversion route works without.
+MARKER_VENV="${MYCONVERT_MARKER_VENV:-}"
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+die()  { echo "error: $*" >&2; exit 1; }
+info() { echo ":: $*"; }
+
+ext_lower() {
+  local f="$1"
+  local e="${f##*.}"
+  echo "${e}" | tr '[:upper:]' '[:lower:]'
+}
+
+require() {
+  command -v "$1" >/dev/null 2>&1 || die "'$1' not found. Install it first."
+}
+
+run_cmd() {
+  if [[ "${DRY_RUN:-0}" == "1" ]]; then
+    echo "[dry-run] $*"
+  else
+    "$@"
+  fi
+}
+
+# ---------------------------------------------------------------------------
+# Usage
+# ---------------------------------------------------------------------------
+
+usage() {
+cat <<'EOF'
+myconvert - universal file format converter
+
+USAGE
+  myconvert [OPTIONS] <input> <output>
+
+OPTIONS
+  --dry-run       Print the command without executing
+  --force-marker  Use marker_single with LLM assistance (slower but better quality)
+  --ocr           Force OCR (passed to marker_single)
+  --no-llm        Skip LLM enhancement for marker conversions
+  -h, --help      Show this help
+
+DEFAULT BEHAVIOR
+  PDF -> markdown uses fast pdftotext + pandoc by default.
+  Use --force-marker for LLM-enhanced output (slower, better quality).
+
+SUPPORTED CONVERSIONS
+
+  Documents (marker_single / pandoc / poppler)
+    pdf      -> md json html txt png docx
+    docx     -> md json html pdf
+    pptx     -> md json html
+    xlsx     -> md json html
+    epub     -> md json html pdf
+    html     -> md json pdf docx
+    md       -> pdf docx html rst latex epub
+    rst      -> md pdf html
+    tex      -> pdf
+    txt      -> pdf docx
+
+  Images (magick / sips)
+    png jpg jpeg webp gif tiff bmp svg heic avif ico
+    (any-to-any among the above)
+
+  Video (ffmpeg)
+    mp4 mov avi mkv webm flv wmv
+    (any-to-any, plus video -> gif / mp3 / wav / aac)
+
+  Audio (ffmpeg)
+    mp3 wav aac flac ogg m4a wma
+    (any-to-any among the above)
+
+  Data (python3)
+    json <-> yaml
+    json <-> csv
+EOF
+}
+
+# ---------------------------------------------------------------------------
+# Format classification
+# ---------------------------------------------------------------------------
+
+is_marker_input() {
+  case "$1" in
+    pdf|png|jpg|jpeg|tiff|bmp|gif|webp|pptx|docx|xlsx|html|htm|epub) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+is_marker_output() {
+  case "$1" in
+    md|markdown|json|html|htm) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+marker_out_fmt() {
+  case "$1" in
+    md|markdown) echo "markdown" ;;
+    json)        echo "json" ;;
+    html|htm)    echo "html" ;;
+  esac
+}
+
+is_image() {
+  case "$1" in
+    png|jpg|jpeg|webp|gif|tiff|tif|bmp|svg|heic|avif|ico) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+is_video() {
+  case "$1" in
+    mp4|mov|avi|mkv|webm|flv|wmv) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+is_audio() {
+  case "$1" in
+    mp3|wav|aac|flac|ogg|m4a|wma) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+is_pandoc_input() {
+  case "$1" in
+    md|markdown|rst|tex|latex|txt|html|htm|docx|epub|org) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+is_pandoc_output() {
+  case "$1" in
+    md|markdown|pdf|docx|html|htm|rst|latex|tex|epub|txt|org) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+is_data() {
+  case "$1" in
+    json|yaml|yml|csv) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+# ---------------------------------------------------------------------------
+# Conversion functions
+# ---------------------------------------------------------------------------
+
+convert_marker() {
+  local input="$1" output="$2" out_fmt="$3"
+  [[ -n "$MARKER_VENV" ]] || die "--force-marker needs MYCONVERT_MARKER_VENV set to the activate script of a venv with 'marker' installed (pip install marker-pdf)"
+  [[ -f "$MARKER_VENV" ]] || die "MYCONVERT_MARKER_VENV points at a missing file: $MARKER_VENV"
+
+  local marker_args=()
+  marker_args+=(--output_dir "$output" --output_format "$out_fmt")
+
+  if [[ "${USE_LLM:-1}" == "1" ]] && [[ -n "${OPENAI_API_KEY:-}" ]]; then
+    marker_args+=(--use_llm)
+    marker_args+=(--llm_service marker.services.openai.OpenAIService)
+    marker_args+=(--openai_api_key "$OPENAI_API_KEY")
+  fi
+
+  [[ "${FORCE_OCR:-0}" == "1" ]] && marker_args+=(--force_ocr)
+
+  info "marker_single -> $out_fmt (output dir: $output)"
+  if [[ "${DRY_RUN:-0}" == "1" ]]; then
+    local display_args="${marker_args[*]}"
+    [[ -n "${OPENAI_API_KEY:-}" ]] && display_args="${display_args//$OPENAI_API_KEY/\$OPENAI_API_KEY}"
+    echo "[dry-run] source $MARKER_VENV && marker_single ${input} ${display_args}"
+  else
+    (
+      # shellcheck disable=SC1090
+      source "$MARKER_VENV"
+      marker_single "$input" "${marker_args[@]}"
+    )
+  fi
+}
+
+convert_pdf_txt() {
+  local input="$1" output="$2"
+  require pdftotext
+  info "pdftotext"
+  run_cmd pdftotext "$input" "$output"
+}
+
+convert_pdf_png() {
+  local input="$1" output="$2"
+  require pdftoppm
+  local base="${output%.*}"
+  info "pdftoppm -png -r 200"
+  run_cmd pdftoppm -png -r 200 "$input" "$base"
+  # pdftoppm appends -1.png for single page; rename if only one page
+  if [[ -f "${base}-1.png" ]] && [[ ! -f "${base}-2.png" ]]; then
+    mv "${base}-1.png" "$output"
+  fi
+}
+
+convert_pdf_md() {
+  local input="$1" output="$2"
+  require pandoc
+  info "pandoc (pdf -> markdown, fast path)"
+  run_cmd pandoc "$input" -t markdown --wrap=none -o "$output"
+}
+
+convert_pdf_json() {
+  local input="$1" output="$2"
+  require pandoc
+  info "pandoc (pdf -> json, fast path)"
+  run_cmd pandoc "$input" -t json -o "$output"
+}
+
+convert_pdf_html() {
+  local input="$1" output="$2"
+  require pandoc
+  info "pandoc (pdf -> html, fast path)"
+  run_cmd pandoc "$input" -t html -o "$output"
+}
+
+convert_docx_md() {
+  local input="$1" output="$2"
+  require pandoc
+  # Output is a directory: create OUTPUT/OUTPUT.md
+  local input_abs
+  input_abs=$(realpath "$input")
+  local input_basename
+  input_basename=$(basename "$input")
+  local out_dir="${output%.md}"
+  out_dir="${out_dir%.markdown}"
+  local out_dir_abs
+  out_dir_abs=$(realpath "$(dirname "$output")")/$(basename "$out_dir")
+  local out_file="${out_dir_abs}/$(basename "${out_dir}").md"
+
+  # Run in temp dir so pandoc uses relative paths (media/XXX.png)
+  local tmp_dir
+  tmp_dir=$(mktemp -d)
+
+  info "pandoc (docx -> markdown with media extraction)"
+  run_cmd mkdir -p "$out_dir_abs"
+  (
+    cp "$input_abs" "$tmp_dir/$input_basename"
+    cd "$tmp_dir"
+    # Use --extract-media=. to get relative paths like media/xxx directly
+    pandoc -f docx -t markdown --wrap=none -o "$input_basename" --extract-media="." "$input_basename"
+    mv "$input_basename" "$out_file"
+    # Move media folder to output directory
+    [[ -d "./media" ]] && mv "./media" "$out_dir_abs/"
+  )
+  rm -rf "$tmp_dir"
+}
+
+convert_pandoc() {
+  local input="$1" output="$2"
+  require pandoc
+  local pandoc_args=()
+  case "$OUT_FMT" in
+    md|markdown|tex|latex) pandoc_args+=(--wrap=none) ;;
+  esac
+  info "pandoc"
+  run_cmd pandoc "$input" -o "$output" ${pandoc_args[@]+"${pandoc_args[@]}"}
+}
+
+convert_image() {
+  local input="$1" output="$2"
+  local in_fmt="$3" out_fmt="$4"
+
+  # HEIC input: prefer sips on macOS
+  if [[ "$in_fmt" == "heic" ]] && command -v sips >/dev/null 2>&1; then
+    local sips_fmt="$out_fmt"
+    [[ "$sips_fmt" == "jpg" ]] && sips_fmt="jpeg"
+    info "sips (heic -> $out_fmt)"
+    run_cmd sips -s format "$sips_fmt" "$input" --out "$output"
+    return
+  fi
+
+  # ImageMagick 7 provides `magick`; version 6, still current on Ubuntu 24.04,
+  # provides `convert` instead.
+  local im
+  if command -v magick >/dev/null 2>&1; then
+    im=magick
+  elif command -v convert >/dev/null 2>&1; then
+    im=convert
+  else
+    die "ImageMagick not found (need 'magick' or 'convert'). Install it first."
+  fi
+
+  info "$im ($in_fmt -> $out_fmt)"
+  if [[ "$in_fmt" == "svg" ]]; then
+    run_cmd "$im" -density 300 "$input" "$output"
+  else
+    run_cmd "$im" "$input" "$output"
+  fi
+}
+
+convert_video() {
+  local input="$1" output="$2" out_fmt="$3"
+  require ffmpeg
+
+  if [[ "$out_fmt" == "gif" ]]; then
+    info "ffmpeg (video -> gif with palette)"
+    if [[ "${DRY_RUN:-0}" == "1" ]]; then
+      echo "[dry-run] ffmpeg -i $input -vf 'fps=15,scale=480:-1:flags=lanczos,split[s0][s1];[s0]palettegen[p];[s1][p]paletteuse' -loop 0 $output"
+    else
+      ffmpeg -i "$input" \
+        -vf "fps=15,scale=480:-1:flags=lanczos,split[s0][s1];[s0]palettegen[p];[s1][p]paletteuse" \
+        -loop 0 -y "$output"
+    fi
+    return
+  fi
+
+  info "ffmpeg (video -> $out_fmt)"
+  run_cmd ffmpeg -i "$input" -y "$output"
+}
+
+convert_video_to_audio() {
+  local input="$1" output="$2"
+  require ffmpeg
+  info "ffmpeg (extract audio)"
+  run_cmd ffmpeg -i "$input" -vn -y "$output"
+}
+
+convert_audio() {
+  local input="$1" output="$2"
+  require ffmpeg
+  info "ffmpeg (audio)"
+  run_cmd ffmpeg -i "$input" -y "$output"
+}
+
+convert_data() {
+  local input="$1" output="$2" in_fmt="$3" out_fmt="$4"
+  require python3
+
+  case "${in_fmt}_${out_fmt}" in
+    json_yaml|json_yml)
+      info "python3 (json -> yaml)"
+      run_cmd python3 -c "
+import json, sys
+try:
+    import yaml
+except ImportError:
+    sys.exit('error: PyYAML not installed (pip install pyyaml)')
+with open('$input') as f: data = json.load(f)
+with open('$output', 'w') as f: yaml.dump(data, f, default_flow_style=False, allow_unicode=True)
+" ;;
+    yaml_json|yml_json)
+      info "python3 (yaml -> json)"
+      run_cmd python3 -c "
+import json, sys
+try:
+    import yaml
+except ImportError:
+    sys.exit('error: PyYAML not installed (pip install pyyaml)')
+with open('$input') as f: data = yaml.safe_load(f)
+with open('$output', 'w') as f: json.dump(data, f, indent=2, ensure_ascii=False)
+" ;;
+    csv_json)
+      info "python3 (csv -> json)"
+      run_cmd python3 -c "
+import csv, json
+with open('$input') as f: rows = list(csv.DictReader(f))
+with open('$output', 'w') as f: json.dump(rows, f, indent=2, ensure_ascii=False)
+" ;;
+    json_csv)
+      info "python3 (json -> csv)"
+      run_cmd python3 -c "
+import csv, json, sys
+with open('$input') as f: rows = json.load(f)
+if not isinstance(rows, list) or not rows:
+    sys.exit('error: JSON must be a non-empty array of objects')
+with open('$output', 'w', newline='') as f:
+    w = csv.DictWriter(f, fieldnames=rows[0].keys())
+    w.writeheader()
+    w.writerows(rows)
+" ;;
+    *) die "Unsupported data conversion: $in_fmt -> $out_fmt" ;;
+  esac
+}
+
+# ---------------------------------------------------------------------------
+# Main routing
+# ---------------------------------------------------------------------------
+
+DRY_RUN=0
+FORCE_MARKER=0
+FORCE_OCR=0
+USE_LLM=1
+POSITIONAL=()
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -h|--help)    usage; exit 0 ;;
+    --dry-run)    DRY_RUN=1; shift ;;
+    --force-marker) FORCE_MARKER=1; shift ;;
+    --ocr)        FORCE_OCR=1; shift ;;
+    --no-llm)     USE_LLM=0; shift ;;
+    -*)           die "Unknown option: $1 (try --help)" ;;
+    *)            POSITIONAL+=("$1"); shift ;;
+  esac
+done
+
+[[ ${#POSITIONAL[@]} -ge 2 ]] || die "Usage: myconvert [OPTIONS] <input> <output>"
+
+INPUT="${POSITIONAL[0]}"
+OUTPUT="${POSITIONAL[1]}"
+
+[[ -e "$INPUT" ]] || die "Input file not found: $INPUT"
+
+IN_FMT=$(ext_lower "$INPUT")
+OUT_FMT=$(ext_lower "$OUTPUT")
+
+# Normalize aliases
+[[ "$IN_FMT" == "jpeg" ]] && IN_FMT="jpg"
+[[ "$OUT_FMT" == "jpeg" ]] && OUT_FMT="jpg"
+[[ "$IN_FMT" == "htm" ]] && IN_FMT="html"
+[[ "$OUT_FMT" == "htm" ]] && OUT_FMT="html"
+[[ "$IN_FMT" == "tif" ]] && IN_FMT="tiff"
+[[ "$OUT_FMT" == "tif" ]] && OUT_FMT="tiff"
+[[ "$IN_FMT" == "yml" ]] && IN_FMT="yaml"
+[[ "$OUT_FMT" == "yml" ]] && OUT_FMT="yaml"
+[[ "$IN_FMT" == "latex" ]] && IN_FMT="tex"
+[[ "$OUT_FMT" == "latex" ]] && OUT_FMT="tex"
+
+# --- Route the conversion ---
+
+# 1. PDF -> txt (pdftotext, fast path)
+if [[ "$IN_FMT" == "pdf" && "$OUT_FMT" == "txt" ]]; then
+  convert_pdf_txt "$INPUT" "$OUTPUT"
+
+# 2. PDF -> png (pdftoppm)
+elif [[ "$IN_FMT" == "pdf" && "$OUT_FMT" == "png" ]]; then
+  convert_pdf_png "$INPUT" "$OUTPUT"
+
+# 3. PDF -> md/json/html (fast path by default, marker with --force-marker)
+elif [[ "$IN_FMT" == "pdf" ]] && is_marker_output "$OUT_FMT"; then
+  if [[ "$FORCE_MARKER" == "1" ]]; then
+    info "Using marker (LLM-assisted, slower but better quality)"
+    convert_marker "$INPUT" "$OUTPUT" "$(marker_out_fmt "$OUT_FMT")"
+  else
+    case "$OUT_FMT" in
+      md|markdown) convert_pdf_md "$INPUT" "$OUTPUT" ;;
+      json)       convert_pdf_json "$INPUT" "$OUTPUT" ;;
+      html|htm)   convert_pdf_html "$INPUT" "$OUTPUT" ;;
+      *)          die "Unsupported PDF output: $OUT_FMT" ;;
+    esac
+  fi
+
+# 4. Marker-supported input -> md/json/html (non-PDF, uses marker)
+elif is_marker_input "$IN_FMT" && is_marker_output "$OUT_FMT"; then
+  # Don't use marker for image->image; only for document-like conversions to md/json/html
+  if is_image "$IN_FMT" && is_image "$OUT_FMT"; then
+    convert_image "$INPUT" "$OUTPUT" "$IN_FMT" "$OUT_FMT"
+  # Don't use marker for docx -> md; use pandoc with media extraction instead
+  elif [[ "$IN_FMT" == "docx" ]] && [[ "$OUT_FMT" == "md" || "$OUT_FMT" == "markdown" ]]; then
+    convert_docx_md "$INPUT" "$OUTPUT"
+  elif [[ "$FORCE_MARKER" == "1" ]]; then
+    convert_marker "$INPUT" "$OUTPUT" "$(marker_out_fmt "$OUT_FMT")"
+  else
+    # Default for non-PDF inputs: use pandoc
+    convert_pandoc "$INPUT" "$OUTPUT"
+  fi
+
+# 5. Image -> image
+elif is_image "$IN_FMT" && is_image "$OUT_FMT"; then
+  convert_image "$INPUT" "$OUTPUT" "$IN_FMT" "$OUT_FMT"
+
+# 6. Video -> gif
+elif is_video "$IN_FMT" && [[ "$OUT_FMT" == "gif" ]]; then
+  convert_video "$INPUT" "$OUTPUT" "gif"
+
+# 7. Video -> audio
+elif is_video "$IN_FMT" && is_audio "$OUT_FMT"; then
+  convert_video_to_audio "$INPUT" "$OUTPUT"
+
+# 8. Video -> video
+elif is_video "$IN_FMT" && is_video "$OUT_FMT"; then
+  convert_video "$INPUT" "$OUTPUT" "$OUT_FMT"
+
+# 9. Audio -> audio
+elif is_audio "$IN_FMT" && is_audio "$OUT_FMT"; then
+  convert_audio "$INPUT" "$OUTPUT"
+
+# 10. Data conversions
+elif is_data "$IN_FMT" && is_data "$OUT_FMT"; then
+  convert_data "$INPUT" "$OUTPUT" "$IN_FMT" "$OUT_FMT"
+
+# 11. Pandoc-supported conversions (catch-all for documents)
+elif is_pandoc_input "$IN_FMT" && is_pandoc_output "$OUT_FMT"; then
+  convert_pandoc "$INPUT" "$OUTPUT"
+
+else
+  die "Unsupported conversion: $IN_FMT -> $OUT_FMT (try --help)"
+fi
+
+info "Done: $INPUT -> $OUTPUT"
