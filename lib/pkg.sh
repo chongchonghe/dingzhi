@@ -269,17 +269,26 @@ _pkg_install_noroot() {
 # binary on apt. Pass a non-empty fifth argument to run eget under sudo.
 _pkg_eget() {
     local repo="$1" filter="$2" file="$3" dest="$4" use_sudo="${5:-}"
-    local args
-    args="--to $dest"
-    [ -n "$filter" ] && args="$args --asset $filter"
-    [ -n "$file" ] && args="$args --file $file"
+    local -a args
+
+    args=(--to "$dest")
+    [ -n "$filter" ] && args+=(--asset "$filter")
+    [ -n "$file" ] && args+=(--file "$file")
+
+    # Many projects publish checksums, signatures, and SBOMs alongside the
+    # archive, and those filenames contain the archive's name. Without these
+    # exclusions eget finds several candidates, prompts for a choice, and dies
+    # with "Error reading selection" in any non-interactive run.
+    args+=(--asset "^.sbom")
+    args+=(--asset "^.sig")
+    args+=(--asset "^.asc")
+    args+=(--asset "^.sha256")
+    args+=(--asset "^.pem")
 
     if [ -n "$use_sudo" ]; then
-        # shellcheck disable=SC2086
-        sudo "$(command -v eget)" "$repo" $args
+        sudo "$(command -v eget)" "$repo" "${args[@]}"
     else
-        # shellcheck disable=SC2086
-        eget "$repo" $args
+        eget "$repo" "${args[@]}"
     fi
 }
 
