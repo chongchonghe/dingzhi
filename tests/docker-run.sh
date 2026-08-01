@@ -69,6 +69,35 @@ fi
 # the working-tree mount below. There is deliberately no second mount for them:
 # an agent that starts the container any other way must still find its spec.
 
+# Porting source. Tasks 9, 11, and 13 copy configs and two scripts out of the
+# tools repo; without these the container cannot complete them.
+#
+# Mounted READ-ONLY, and enumerated exactly — not dotfiles/ and bin/ wholesale.
+# The spec excludes doom, raycast, spacemacs, vscode, iTerm2, and every bin/
+# script but two; leaving those unmounted makes the content cut physical rather
+# than a rule someone has to remember. It also keeps rc/, my-computers/, and the
+# rest of a personal repo out of the container entirely.
+SOURCE_DOTFILES=(kitty nvim tmux yazi vifm bat lazygit cheat git vim)
+SOURCE_BIN=(myconvert compressimage)
+
+SOURCE_REPO="${DINGZHI_SOURCE_REPO:-$(cd "$REPO_ROOT/../.." 2>/dev/null && pwd)}"
+if [[ -n "$SOURCE_REPO" && -d "$SOURCE_REPO/dotfiles" && -d "$SOURCE_REPO/bin" ]]; then
+    for d in "${SOURCE_DOTFILES[@]}"; do
+        [[ -d "$SOURCE_REPO/dotfiles/$d" ]] \
+            && MOUNTS+=(-v "$SOURCE_REPO/dotfiles/$d:/home/dev/source/dotfiles/$d:ro")
+    done
+    for f in "${SOURCE_BIN[@]}"; do
+        [[ -f "$SOURCE_REPO/bin/$f" ]] \
+            && MOUNTS+=(-v "$SOURCE_REPO/bin/$f:/home/dev/source/bin/$f:ro")
+    done
+    MOUNTS+=(-e "DINGZHI_SOURCE=/home/dev/source")
+else
+    echo "warning: no porting source found (looked for dotfiles/ and bin/ under" >&2
+    echo "         '${SOURCE_REPO:-<unresolved>}'). Plan tasks 9, 11, and 13 copy" >&2
+    echo "         files from there and will fail. Set DINGZHI_SOURCE_REPO to the" >&2
+    echo "         tools checkout, or skip those tasks." >&2
+fi
+
 # Only allocate a TTY when we actually have one, so this works from a script
 # or a CI job as well as from a terminal.
 TTY_FLAGS=(-i)

@@ -11,6 +11,11 @@ you where you are, what the rules are, and how to proceed.
 - The container is disposable. `docker run --rm` means anything written outside
   `~/dingzhi` disappears when the shell exits. That is deliberate: it is what
   makes running the installer safe.
+- `~/source` holds the **porting source**, mounted **read-only**: `dotfiles/`
+  and `bin/` from the tools repo that dingzhi is derived from. `$DINGZHI_SOURCE`
+  points at it. Tasks 9, 11, and 13 copy from here. Only those two directories
+  are mounted, not the whole repo — the rest of it is not yours to read, and
+  none of it is yours to write.
 - Your image is one of three. Check which one before assuming anything:
 
   ```bash
@@ -64,6 +69,9 @@ so rather than guessing at the design.
 6. **Catppuccin Mocha, dark only.** No light variant, no theme switcher, no
    `~/.darktheme`. This is a deliberate product decision, not an omission.
 7. **Conventional Commits**, one commit per completed task.
+8. **`~/source` is read-only.** Copy out of it, never into it. If it is missing
+   and you are on Task 9, 11, or 13, stop and say so — those tasks port real
+   configuration files and cannot be improvised.
 
 ## Running things
 
