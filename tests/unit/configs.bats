@@ -73,6 +73,23 @@ setup() {
     [ -z "$output" ] || { echo "$output"; return 1; }
 }
 
+@test "no editor-agent or machine-local settings ship in configs" {
+    # A vendored .claude/ would inject skills and permission settings into the
+    # Claude Code session of anyone who clones dingzhi.
+    #
+    # This asks what dingzhi *ships*, so it inspects tracked files only.
+    # configs/tmux/plugins/ fills with runtime state during a container run
+    # (the config is symlinked, so the plugin clone lands in the checkout) and
+    # is gitignored; a find(1) here would flag that.
+    run bash -c "cd '$DINGZHI_PATH' && git ls-files configs | \
+        grep -E '(^|/)\.claude/|\.local\.json$|(^|/)\.git/'"
+    [ -z "$output" ] || { echo "$output"; return 1; }
+}
+
+@test "the nvim plugin lockfile ships, so plugin versions are reproducible" {
+    [ -f "$DINGZHI_PATH/configs/nvim/lazy-lock.json" ]
+}
+
 @test "the global gitignore is present" {
     [ -f "$DINGZHI_PATH/configs/git/gitignore_global" ]
 }

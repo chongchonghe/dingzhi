@@ -69,9 +69,9 @@ if [[ $# -eq 0 ]]; then
 fi
 
 # Everything the container needs is in the repository: docs/ holds the design
-# and plan, inbox/ holds the configs and scripts the porting tasks copy from.
-# The working-tree mount below is therefore the only mount required — no
-# second bind to forget, and no launch method that silently drops something.
+# and the plan. The working-tree mount below is therefore the only mount
+# required — no second bind to forget, and no launch method that silently
+# drops something.
 
 # Only allocate a TTY when we actually have one, so this works from a script
 # or a CI job as well as from a terminal.

@@ -60,9 +60,9 @@ setup() {
 }
 
 @test "the porting source travels with the repository" {
-    # Needed by plan tasks 9, 11, and 13. Task 18 deletes inbox/ once every
-    # piece of it has been ported, so its absence is expected at the end.
-    [ -d "$DINGZHI_PATH/inbox" ] || skip "inbox/ already ported and removed"
+    # Needed by plan tasks 9, 11, and 13. Task 18 deleted inbox/ once every
+    # piece of it had been ported, so it is expected to be gone now.
+    [ -d "$DINGZHI_PATH/inbox" ] || skip "inbox/ ported and removed (expected)"
 
     for d in kitty nvim tmux yazi vifm bat lazygit cheat git vim; do
         [ -d "$DINGZHI_PATH/inbox/dotfiles/$d" ] \
@@ -74,7 +74,7 @@ setup() {
 }
 
 @test "the porting source holds only what the spec ships" {
-    [ -d "$DINGZHI_PATH/inbox" ] || skip "inbox/ already ported and removed"
+    [ -d "$DINGZHI_PATH/inbox" ] || skip "inbox/ ported and removed (expected)"
 
     # Deliberately excluded by the spec. If these appear, someone widened the
     # copy and can now port content the design says stays behind.

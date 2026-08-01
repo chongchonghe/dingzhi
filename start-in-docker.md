@@ -7,15 +7,11 @@ you where you are, what the rules are, and how to proceed.
 
 - The dingzhi working tree is mounted at `~/dingzhi` — this is a **live mount of
   the host repository**. Every edit you make here appears on the host
-  immediately. It is not a copy. It is also the *only* mount: `docs/` and
-  `inbox/` are inside it, so nothing this container needs lives elsewhere.
+  immediately. It is not a copy. It is also the *only* mount: `docs/` is
+  inside it, so nothing this container needs lives elsewhere.
 - The container is disposable. `docker run --rm` means anything written outside
   `~/dingzhi` disappears when the shell exits. That is deliberate: it is what
   makes running the installer safe.
-- `~/dingzhi/inbox/` holds the **porting source**: the ten config directories,
-  two scripts, and the delta theme that tasks 9, 11, and 13 copy from. It is
-  committed to the repository, so it travels with the tree — there is nothing
-  to mount and nothing to forget. Copy *out* of it; do not edit it in place.
 - Your image is one of three. Check which one before assuming anything:
 
   ```bash
@@ -69,11 +65,6 @@ so rather than guessing at the design.
 6. **Catppuccin Mocha, dark only.** No light variant, no theme switcher, no
    `~/.darktheme`. This is a deliberate product decision, not an omission.
 7. **Conventional Commits**, one commit per completed task.
-8. **`inbox/` is source material, not working files.** Copy out of it, never
-   edit inside it. It is deleted in Task 18 once everything has been ported —
-   until then, treat it as read-only. If it is missing and you are on Task 9,
-   11, or 13, stop and say so; those tasks port real configuration files and
-   cannot be improvised.
 
 ## Running things
 
