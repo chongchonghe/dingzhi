@@ -1,0 +1,45 @@
+# dingzhi git configuration.
+#
+# Identity lives in ~/.gitconfig.local, written by install/identification.sh.
+# The delta theme is symlinked into place by apps/git-delta/install.sh.
+# Neither path points into this checkout, so the config works wherever
+# dingzhi is cloned.
+
+[include]
+	path = ~/.gitconfig.local
+	path = ~/.config/dingzhi-delta-theme.gitconfig
+
+[pull]
+	rebase = false
+
+[push]
+	autoSetupRemote = true
+
+[init]
+	defaultBranch = main
+
+[alias]
+	fa = fetch --all
+	su = submodule update
+	amend = commit --amend --no-edit
+
+[core]
+	pager = delta
+	excludesfile = ~/.gitignore_global
+
+[interactive]
+	diffFilter = delta --color-only
+
+[delta]
+	navigate = true
+	side-by-side = true
+	line-numbers = true
+	wrap-max-lines = unlimited
+	dark = true
+	features = catppuccin-mocha
+
+[filter "lfs"]
+	process = git-lfs filter-process
+	required = true
+	clean = git-lfs clean -- %f
+	smudge = git-lfs smudge -- %f

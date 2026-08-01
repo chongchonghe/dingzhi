@@ -1,0 +1,158 @@
+" A minimal .vimrc with no plugin manager required
+" Author: Chong-Chong He
+
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+" General
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+" Don't worry about trying to support old school Vi features
+set nocompatible
+
+syntax on
+filetype indent on
+
+set encoding=utf-8
+set history=100
+set hidden
+set autoread
+set nowritebackup
+
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+" UI
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+set number
+set ruler
+set showcmd
+set cursorline
+set laststatus=2
+set statusline=%f\ %m\ %=L:%l/%L\ C:%c\ (%p%%)
+set wildmenu
+set lazyredraw
+set showmatch
+set scrolloff=5
+set splitbelow
+set splitright
+set wrap
+set linebreak
+
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+" Search
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+set incsearch
+set hlsearch
+set ignorecase
+set smartcase
+
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+" Indentation & Tabs
+"
+" Default: real tabs displayed as 8 columns (traditional Unix).
+" shiftwidth=0 means >> follows tabstop automatically.
+" Per-filetype overrides below replace expandtab where conventions differ.
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+set noexpandtab
+set tabstop=8
+set shiftwidth=0
+set softtabstop=0
+set autoindent
+set backspace=indent,eol,start
+
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+" Persistent undo
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+if has('persistent_undo')
+  set undofile
+  set undodir=~/.vim/undo
+  silent! call mkdir(expand('~/.vim/undo'), 'p')
+endif
+
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+" Clipboard & input
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+set clipboard+=unnamed
+set timeout timeoutlen=1000 ttimeoutlen=100
+set pastetoggle=<F3>
+set dictionary=/usr/share/dict/words
+
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+" File-type indentation overrides
+"
+" Convention summary:
+"   tabs  (8)  : C, C++, Go, shell, Makefile  [default]
+"   4 spaces   : Python (PEP8), Rust, Java
+"   2 spaces   : JavaScript/TS, HTML, CSS, Ruby, YAML, Vim script
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+" Python: PEP8 — 4 spaces, Unix line endings
+autocmd FileType python setlocal expandtab tabstop=4 softtabstop=4 shiftwidth=4
+      \ fileformat=unix colorcolumn=80
+
+" Rust: 4 spaces (rustfmt default)
+autocmd FileType rust setlocal expandtab tabstop=4 softtabstop=4 shiftwidth=4
+
+" Java: 4 spaces
+autocmd FileType java setlocal expandtab tabstop=4 softtabstop=4 shiftwidth=4
+
+" 2-space filetypes
+autocmd FileType javascript,typescript,html,css,scss,
+      \ruby,yaml,vim,json,lua,markdown
+      \ setlocal expandtab tabstop=2 softtabstop=2 shiftwidth=2
+
+" Go: tabs via gofmt (tabstop=4 for readability)
+autocmd FileType go setlocal noexpandtab tabstop=4 shiftwidth=0 softtabstop=0
+
+" Git commits
+autocmd FileType gitcommit setlocal spell textwidth=72
+
+" Markdown: soft wrap, no hard breaks
+autocmd FileType markdown setlocal wrap linebreak nolist textwidth=0 wrapmargin=0
+
+" Spell check for TeX
+autocmd BufRead,BufNewFile *.tex setlocal spell spelllang=en_us
+
+" Filetype detection fixes
+autocmd BufRead,BufNewFile *.md set filetype=markdown
+
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+" vimdiff
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+highlight! link DiffText Todo
+if &diff
+  syntax off
+endif
+
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+" Key mappings
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+" Split navigation
+nnoremap <C-J> <C-W><C-J>
+nnoremap <C-K> <C-W><C-K>
+nnoremap <C-L> <C-W><C-L>
+nnoremap <C-H> <C-W><C-H>
+
+" Clipboard (X11 primary and clipboard registers)
+noremap ,y "*y
+noremap ,p "*p
+noremap ,Y "+y
+noremap ,P "+p
+
+" Easier command mode entry
+nnoremap ; :
+
+" Quick save and git status
+nnoremap <leader>w :w<CR>
+nnoremap <leader>gs :!git status<CR>
+
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+" Misc
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+set grepprg=ag\ --nogroup\ --nocolor
+let $max_print_line=1024

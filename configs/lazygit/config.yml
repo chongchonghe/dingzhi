@@ -1,0 +1,59 @@
+gui:
+  theme:
+    lightTheme: false
+  # Force vertical split ('vertical', 'horizontal', or 'flexible')
+  mainPanelSplitMode: 'flexible'
+  # Location when in half-screen mode ('left' or 'top')
+  enlargedSideViewLocation: 'left'
+  # Optional: expand side panel for better vertical view
+  expandFocusedSidePanel: false
+  sidePanelWidth: 0.2 # Width ratio of side panel to main view
+git:
+  pagers:
+    - colorArg: always
+      pager: delta --paging=never --line-numbers --side-by-side --tabs=4
+customCommands:
+  # Open PR in browser (selected branch OR current branch)
+  - key: "G"
+    context: "localBranches"
+    command: "gh pr view -w {{.SelectedLocalBranch.Name}}"
+    description: "Open PR in browser (selected branch)"
+  - key: "G"
+    context: "remoteBranches"
+    command: "gh pr view -w {{.SelectedRemoteBranch.Name}}"
+    description: "Open PR in browser (selected branch)"
+  # Approve PR (selected branch)
+  - key: "A"
+    context: "localBranches"
+    command: "gh pr review --approve {{.SelectedLocalBranch.Name}}"
+    description: "Approve PR (selected branch)"
+  - key: "A"
+    context: "remoteBranches"
+    command: "gh pr review --approve {{.SelectedRemoteBranch.Name}}"
+    description: "Approve PR (selected branch)"
+  # # Merge PR (selected branch) with a menu (squash/merge/rebase) + delete branch
+  # - key: "M"
+  #   context: "localBranches"
+  #   command: "gh pr merge {{.SelectedLocalBranch.Name}}"
+  #   description: "Merge PR (selected branch)"
+  # - key: "M"
+  #   context: "remoteBranches"
+  #   command: "gh pr merge {{.SelectedRemoteBranch.Name}}"
+  #   description: "Merge PR (selected branch)"
+  #
+  # git submodule update
+  - key: "U"
+    context: "localBranches"
+    command: "git submodule update"
+    description: "git submodule update (current branch)"
+  - key: "C"
+    context: "localBranches"
+    description: "Diff working tree vs this branch"
+    command: "git diff {{.SelectedLocalBranch.Name}}"
+    output: terminal
+  - key: "B"
+    context: "localBranches"
+    description: "Diff current branch vs common base with selected branch"
+    command: "git diff $(git merge-base HEAD {{.SelectedLocalBranch.Name}})"
+    output: terminal
+notARepository: 'quit'
