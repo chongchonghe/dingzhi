@@ -111,15 +111,26 @@ setup() {
     [ "$status" -ne 0 ]
 }
 
-@test "every package has a mapping for all three backends or an explicit gap" {
+@test "every package resolves on brew" {
     source "$DINGZHI_PATH/lib/detect.sh"
     source "$DINGZHI_PATH/lib/pkg.sh"
-    # brew and noroot must always resolve; apt is allowed to be empty, since
-    # several tools are simply not in Ubuntu's repositories.
     for p in $(pkg_all_names); do
         [ -n "$(pkg_resolve "$p" brew)" ] || { echo "no brew mapping: $p"; return 1; }
-        [ -n "$(pkg_resolve "$p" noroot)" ] || { echo "no noroot mapping: $p"; return 1; }
     done
+}
+
+@test "only the documented packages lack a noroot mapping" {
+    source "$DINGZHI_PATH/lib/detect.sh"
+    source "$DINGZHI_PATH/lib/pkg.sh"
+    # jpegoptim is not on conda-forge; conda-forge's vifm is osx-64 only.
+    # Their app scripts degrade explicitly. Anything else missing here is a
+    # typo, and would silently fail to install for every no-root user.
+    missing=""
+    for p in $(pkg_all_names); do
+        [ -n "$(pkg_resolve "$p" noroot)" ] || missing="$missing $p"
+    done
+    missing="$(echo "$missing" | tr ' ' '\n' | grep -v '^$' | sort | tr '\n' ' ')"
+    [ "$missing" = "jpegoptim vifm " ] || { echo "unexpected noroot gaps: $missing"; return 1; }
 }
 
 @test "noroot specs use a known kind" {
@@ -127,6 +138,9 @@ setup() {
     source "$DINGZHI_PATH/lib/pkg.sh"
     for p in $(pkg_all_names); do
         spec="$(pkg_resolve "$p" noroot)"
+        # An empty spec means "unavailable on this backend", covered by the
+        # documented-gaps test above.
+        [ -n "$spec" ] || continue
         case "${spec%%:*}" in
             eget|pixi|uv) ;;
             *) echo "bad noroot spec for $p: $spec"; return 1 ;;

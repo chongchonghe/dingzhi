@@ -141,7 +141,8 @@ pkg_resolve() {
 
         vifm:brew)           echo "vifm" ;;
         vifm:apt)            echo "vifm" ;;
-        vifm:noroot)         echo "pixi:vifm" ;;
+        # conda-forge's vifm has an osx-64 build only.
+        vifm:noroot)         echo "" ;;
 
         # ---- shell ----
         zsh:brew)            echo "zsh" ;;
@@ -176,11 +177,12 @@ pkg_resolve() {
 
         jpegoptim:brew)      echo "jpegoptim" ;;
         jpegoptim:apt)       echo "jpegoptim" ;;
-        jpegoptim:noroot)    echo "pixi:jpegoptim" ;;
+        # Not packaged on conda-forge at all.
+        jpegoptim:noroot)    echo "" ;;
 
         webp:brew)           echo "webp" ;;
         webp:apt)            echo "webp" ;;
-        webp:noroot)         echo "pixi:libwebp-tools" ;;
+        webp:noroot)         echo "pixi:libwebp" ;;
 
         *) echo "" ;;
     esac
@@ -286,6 +288,21 @@ _pkg_install_noroot() {
     esac
 }
 
+# GitHub allows 60 unauthenticated API requests per hour, per IP. That is a
+# real constraint on the no-root path: HPC login nodes NAT many users behind a
+# single address, so the budget can already be gone before dingzhi starts.
+# eget reads GITHUB_TOKEN itself; this just finds one if the user has not
+# exported it.
+_pkg_github_token() {
+    if [ -n "${GITHUB_TOKEN:-}" ]; then
+        printf '%s' "$GITHUB_TOKEN"
+    elif [ -n "${GH_TOKEN:-}" ]; then
+        printf '%s' "$GH_TOKEN"
+    elif command -v gh >/dev/null 2>&1; then
+        gh auth token 2>/dev/null || true
+    fi
+}
+
 # _pkg_eget <repo> <filter> <file> <dest> [sudo]
 # Shared by the noroot backend and by app scripts that fall back to a release
 # binary on apt. Pass a non-empty fifth argument to run eget under sudo.
@@ -307,11 +324,24 @@ _pkg_eget() {
     args+=(--asset "^.sha256")
     args+=(--asset "^.pem")
 
+    local token status
+    token="$(_pkg_github_token)"
+
     if [ -n "$use_sudo" ]; then
-        sudo "$(command -v eget)" "$repo" "${args[@]}"
+        # -E would carry the whole environment; pass only what eget needs.
+        sudo GITHUB_TOKEN="$token" "$(command -v eget)" "$repo" "${args[@]}"
+        status=$?
     else
-        eget "$repo" "${args[@]}"
+        GITHUB_TOKEN="$token" eget "$repo" "${args[@]}"
+        status=$?
     fi
+
+    if [ "$status" -ne 0 ] && [ -z "$token" ]; then
+        warn "eget failed for $repo. If the message mentions a rate limit, set"
+        warn "GITHUB_TOKEN (or run 'gh auth login') and re-run: unauthenticated"
+        warn "GitHub API access is capped at 60 requests per hour per IP."
+    fi
+    return "$status"
 }
 
 # Install a package's release binary regardless of backend. Used by app scripts

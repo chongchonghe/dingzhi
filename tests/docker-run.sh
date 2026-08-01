@@ -43,10 +43,13 @@ while [[ $# -gt 0 ]]; do
             shift ;;
         --gh-auth)
             # Forward a GitHub token so `gh` is authenticated in the container.
-            if [[ -n "${GH_TOKEN:-${GITHUB_TOKEN:-}}" ]]; then
-                MOUNTS+=(-e "GH_TOKEN=${GH_TOKEN:-$GITHUB_TOKEN}")
-            elif command -v gh >/dev/null 2>&1 && gh auth token >/dev/null 2>&1; then
-                MOUNTS+=(-e "GH_TOKEN=$(gh auth token)")
+            _tok="${GH_TOKEN:-${GITHUB_TOKEN:-}}"
+            if [[ -z "$_tok" ]] && command -v gh >/dev/null 2>&1; then
+                _tok="$(gh auth token 2>/dev/null || true)"
+            fi
+            if [[ -n "$_tok" ]]; then
+                # GITHUB_TOKEN is what eget reads; GH_TOKEN is what gh reads.
+                MOUNTS+=(-e "GH_TOKEN=$_tok" -e "GITHUB_TOKEN=$_tok")
             else
                 echo "warning: no GitHub token found; run 'gh auth login' first" >&2
             fi
