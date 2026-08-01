@@ -89,6 +89,13 @@ setup() {
     done
 }
 
+@test "the container is x86_64, matching the release binaries dingzhi downloads" {
+    # The no-root backend's eget asset filters are x86_64-only, and every real
+    # dingzhi Linux target is x86_64. On an arm64 container the binaries install
+    # but cannot execute, which looks like a passing install and a broken tool.
+    [ "$(uname -m)" = "x86_64" ]
+}
+
 @test "ssh has a usable home directory" {
     [ -d "/home/dev/.ssh" ]
     [ "$(stat -c '%a' /home/dev/.ssh)" = "700" ]

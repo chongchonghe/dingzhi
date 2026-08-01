@@ -75,7 +75,7 @@ fi
 TTY_FLAGS=(-i)
 [[ -t 0 && -t 1 ]] && TTY_FLAGS+=(-t)
 
-exec docker run --rm "${TTY_FLAGS[@]}" \
+exec docker run --rm --platform "${DINGZHI_PLATFORM:-linux/amd64}" "${TTY_FLAGS[@]}" \
     -v "$REPO_ROOT:/home/dev/dingzhi" \
     ${MOUNTS[@]+"${MOUNTS[@]}"} \
     "$IMAGE" \

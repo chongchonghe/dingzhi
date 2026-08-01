@@ -12,10 +12,18 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO_ROOT"
 
+# Every real dingzhi Linux target is x86_64: HPC login nodes, Ubuntu desktops.
+# The no-root backend downloads x86_64 release binaries, so an arm64 container
+# would test a combination that never ships (and the binaries would not even
+# run). On Apple Silicon this means emulation, which is slower but correct.
+# Override with DINGZHI_PLATFORM=linux/arm64 if you know what you are doing.
+PLATFORM="${DINGZHI_PLATFORM:-linux/amd64}"
+
 build() {
     local variant="$1" with_sudo="$2" with_dev="$3"
-    echo "==> building dingzhi-${variant} (WITH_SUDO=${with_sudo} WITH_DEV_TOOLS=${with_dev})"
+    echo "==> building dingzhi-${variant} ($PLATFORM, WITH_SUDO=${with_sudo} WITH_DEV_TOOLS=${with_dev})"
     docker build \
+        --platform "$PLATFORM" \
         --build-arg "WITH_SUDO=${with_sudo}" \
         --build-arg "WITH_DEV_TOOLS=${with_dev}" \
         -t "dingzhi-${variant}" \
