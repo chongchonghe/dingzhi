@@ -1,0 +1,3 @@
+# bin/ is on PATH via configs/shell/env.sh and holds the dingzhi command plus
+# the shipped utilities. This placeholder keeps the directory present before
+# those land, so the PATH entry is never silently skipped.
