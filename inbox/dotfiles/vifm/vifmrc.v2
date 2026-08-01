@@ -1,0 +1,366 @@
+" vim: filetype=vifm :
+" ==============================================================================
+" VIFM CONFIGURATION FILE
+" ==============================================================================
+" Author: Your Name
+" Last Updated: September 13, 2025
+" Description: Comprehensive vifm configuration with custom commands, mappings,
+"              and system-specific settings for enhanced file management.
+"
+" Table of Contents:
+" 1. Basic Settings & Options
+" 2. Custom Commands
+" 3. Key Mappings & Shortcuts
+" 4. Visual & Display Settings
+" 5. File Type Associations
+" 6. System-Specific Configurations
+" ==============================================================================
+
+" ==============================================================================
+" 1. BASIC SETTINGS & OPTIONS
+" ==============================================================================
+
+" Editor settings
+set vicmd=nvim                    " Use neovim as default editor
+set syscalls                     " Use vifm's own file operations for better performance
+set history=100                   " Directory history size
+set undolevels=100               " Maximum undo levels
+set nofollowlinks                " Don't auto-resolve symbolic links
+set sortnumbers                  " Natural sort of version numbers
+set vimhelp                      " Use Vim-style help format
+set norunexec                    " Don't run executables on Enter
+
+" Search settings
+set ignorecase                   " Ignore case in search patterns
+set smartcase                    " Use case-sensitive search if uppercase letters present
+set nohlsearch                   " Don't highlight search results automatically
+set incsearch                    " Incremental search (search while typing)
+
+" Display settings
+set scrolloff=4                  " Keep cursor away from edges
+set wildmenu                     " Show completion menu
+set wildstyle=popup              " Show completions as popup with descriptions
+set suggestoptions=normal,visual,view,otherpane,keys,marks,registers
+set timefmt=%y-%m-%d\ %H:%M      " Time format for file listings
+set statusline="  Hint: %z%= %A %10u:%-7g %15s %20d  "
+
+" File operations
+set confirm-=delete              " Remove confirmation for trash deletion
+set slowfs=curlftpfs            " Don't do too many requests to slow filesystems
+
+" Session persistence
+set vifminfo=dhistory,chistory,state,tui,shistory,tabs,
+    \phistory,fhistory,dirstack,registers,bookmarks,bmarks
+
+" Miller view (three-column layout)
+set millerview
+set milleroptions=lsize:1,csize:2,rsize:1,rpreview:dirs
+
+" View columns configuration
+set viewcolumns=*{name}..,6{size},16{mtime}
+
+" Sorting
+set sort=+name
+
+" Find program
+set findprg="find %s %a"
+
+" ==============================================================================
+" 2. CUSTOM COMMANDS
+" ==============================================================================
+" Command syntax: :com[mand][!] command_name action
+" Available macros:
+" %a - user arguments    %c - current file under cursor
+" %C - current file in other directory    %f - selected file(s)
+" %F - selected files in other directory  %b - same as %f %F
+" %d - current directory %D - other directory
+" %m - run in menu window
+
+" ------------------------------------------------------------------------------
+" File Operations
+" ------------------------------------------------------------------------------
+command! dup cp %c %c.copy                    " Duplicate file with .copy suffix
+command! cp !cp -i %c %D                      " Copy current file to other pane
+command! cpover !cp -i %c %C                  " Copy file over to other pane
+command! cpr !cp -i %d/%a %D                  " Copy file with relative path
+command! mvall !mv %C/* %c                    " Move all files from other pane
+command! mvd mv "$(ls -t ~/Downloads/* 2>/dev/null | head -n 1)" .  " Move newest download
+
+" ------------------------------------------------------------------------------
+" Archive Operations
+" ------------------------------------------------------------------------------
+command! tar tar -xf %c                       " Extract tar archive
+command! targz tar -xzf %c                    " Extract tar.gz archive
+command! zip zip -r %f.zip %f                 " Create zip archive
+command! merge !pdfunite ./*.pdf merge.pdf    " Merge all PDFs in directory
+
+" ------------------------------------------------------------------------------
+" Development & Build Commands
+" ------------------------------------------------------------------------------
+command! make !!make %a                       " Run make with arguments
+command! clmake make clean && make            " Clean and make
+command! run !! ./%f                          " Execute current file
+command! qk !runqk %c || echo "failed" >> failed.txt  " Run quokka test
+command! code !code .                         " Open current directory in VS Code
+command! cs !cursor %d                        " Open current directory in Cursor
+command! codedif !code -d %f %F               " Compare files in VS Code
+command! mkproj !mkproj .                     " Initialize new project
+
+" ------------------------------------------------------------------------------
+" Text & Document Processing
+" ------------------------------------------------------------------------------
+command! en emacsclient -n %c                 " Open in Emacs client
+command! vi !vi %a                            " Open in vi
+command! vivi vim %f %F -O                    " Open files in vim split
+command! marked !open -a Marked\ 2 %c         " Open in Marked 2
+command! texstudio !open -a TexStudio.app %c  " Open in TeXStudio
+command! texpad !open -a texpad.app %c        " Open in Texpad
+command! texcl !texcl2                        " Clean TeX auxiliary files
+command! nbconvert !/Users/chongchonghe/anaconda3/bin/jupyter nbconvert --to html %c
+command! mdorg !md2org --wrap=none %f -o "%f.org"  " Convert Markdown to Org
+command! talkmd !talkmd %a                    " Process with talkmd
+
+" ------------------------------------------------------------------------------
+" File Utilities & Tools
+" ------------------------------------------------------------------------------
+command! bk !backup %c                        " Backup file
+command! bkr !backuprename %c                 " Backup and rename
+command! date !dateit %c                      " Add date to filename
+command! time !timeit %c                      " Add timestamp to filename
+command! rmsp !remove_space %c                " Remove spaces from filename
+command! ndir mkdir %c.1                      " Create numbered directory
+
+" ------------------------------------------------------------------------------
+" System & Navigation
+" ------------------------------------------------------------------------------
+command! j :execute 'cd' system('autojump %a 2> /dev/null')  " Jump with autojump
+command! o :execute 'cd' system('python3 ${MOVE_ROOT}/getdir_with_quote.py %a 2> /dev/null')
+command! add ![[ ! -z ${MOVE_ROOT} ]] && ${MOVE_ROOT}/mOve update %a %d || echo "MOVE_ROOT is not defined"
+command! cdo :execute 'cd' '%D'               " Change to other directory
+command! mkcd :mkdir %a | cd %a               " Create and enter directory
+command! oo open %c                           " Open with default application
+command! df df -h %m 2> /dev/null             " Show disk usage
+command! du du -sh ./%f                       " Show directory size
+
+" ------------------------------------------------------------------------------
+" Bash commands
+" ------------------------------------------------------------------------------
+command! logv !less +F %c                     " Follow log file with less
+command! logvv !osascript -e "tell application \"Terminal\" to do script \"less +F %d/%c\""
+command! dif !diff %f %F                      " Compare files with diff
+command! kittydiff kitty +kitten diff %f %F   " Compare files with kitty diff
+command! lna ln -s %F                         " Create absolute symbolic link
+command! ln ln -s `grealpath --relative-to="." %F`  " Create relative symbolic link
+command! sh :!sh %c                           " Execute shell script
+command! pdfpng !pdf2png %f                   " Convert PDF to PNG
+command! pngpdf !png2pdf %f                   " Convert PNG to PDF
+command! animateit !/Users/chongchonghe/local/bin/animateit -d %f -f %a
+command! animateitgif !/Users/chongchonghe/local/bin/animateit -d %d -f %a -o "%{d}.gif"
+
+" ==============================================================================
+" 3. KEY MAPPINGS & SHORTCUTS
+" ==============================================================================
+
+" ------------------------------------------------------------------------------
+" 3.1 Basic Navigation & Operations
+" ------------------------------------------------------------------------------
+nnoremap ; :                                  " Swap ; and : for easier commands
+nnoremap E :edit<cr>                          " E to edit (e is preview)
+nnoremap o :o<space>                          " Quick directory navigation
+nnoremap r :!!                                " Quick command execution
+nnoremap s :shell<cr>                         " Start shell in current directory
+nnoremap S :sort<cr>                          " Display sorting dialog
+
+" ------------------------------------------------------------------------------
+" 3.2 View & Preview Controls
+" ------------------------------------------------------------------------------
+nnoremap w :view<cr>                          " Toggle preview window
+vnoremap w :view<cr>gv                        " Toggle preview in visual mode
+
+" ------------------------------------------------------------------------------
+" 3.3 Miller View Controls
+" ------------------------------------------------------------------------------
+nnoremap ,m :set millerview!<CR>              " Toggle Miller view in current pane
+nnoremap ,M :set nomillerview!<CR>            " Toggle Miller view in both panes
+nnoremap ,p :set milleroptions+=rpreview:dirs<CR>    " Preview directories only
+nnoremap ,f :set milleroptions+=rpreview:files<CR>   " Preview files only
+nnoremap ,a :set milleroptions+=rpreview:all<CR>     " Preview all items
+
+" ------------------------------------------------------------------------------
+" 3.4 Configuration Management
+" ------------------------------------------------------------------------------
+nnoremap ,c :write | edit $MYVIFMRC | restart<cr>    " Edit and reload vifmrc
+
+" ------------------------------------------------------------------------------
+" 3.5 Command Abbreviations
+" ------------------------------------------------------------------------------
+ca tn tabnew                                  " Tab new
+ca tc tabclose                                " Tab close
+ca e en                                       " Edit with Emacs
+ca mc make clean                              " Make clean
+ca mk make                                    " Make
+ca mm marked                                  " Open in Marked
+ca md mkdir                                   " Make directory
+
+" ==============================================================================
+" 4. VISUAL & DISPLAY SETTINGS
+" ==============================================================================
+" Format: filetype pattern1,pattern2 program1,program2
+" Format: fileviewer pattern1,pattern2 viewer_program
+
+let $OS = system('uname -s')
+
+" ------------------------------------------------------------------------------
+" 4.1 Universal Display Settings
+" ------------------------------------------------------------------------------
+
+" Color scheme
+colorscheme papercolor-dark
+
+" Bookmarks
+mark h ~/                                     " Home directory bookmark
+
+" Syntax highlighting in preview (requires 'highlight' tool)
+fileviewer *.[ch],*.[ch]pp highlight -O xterm256 -s dante --syntax c %c
+fileviewer Makefile,Makefile.* highlight -O xterm256 -s dante --syntax make %c
+fileviewer CMakelists.txt highlight -O xterm256 -s dante --syntax cmake %c
+fileviewer *.py,*.md,*.sh,*.zsh,*.bash,*.html,*.org,*.toml,*.yaml,*.yml,*.js,*.json,*.bib highlight -O xterm256 -s dante %c
+
+" Special file viewers
+fileviewer *.out tail -f                     " Follow output files
+filetype *.out tail -f
+
+" ------------------------------------------------------------------------------
+" 4.2 System-Specific Display Settings
+" ------------------------------------------------------------------------------
+
+if $OS == 'Linux'
+    " Linux-specific display settings
+    " Image viewing in terminal (Linux with kitty)
+    fileviewer *.jpg,*.jpeg,*.png,*.bmp,*.gif,*.xpm
+        \ kitty +kitten icat --place=%pwx%ph@%pxx%py --transfer-mode=stream %c >/dev/tty </dev/tty %N
+        \ %pc
+        \ kitty +kitten icat --clear >/dev/tty </dev/tty %N
+    
+    " PDF preview (Linux)
+    fileviewer *.pdf
+        \ pdftoppm %c /tmp/abc -png -f 1 > /dev/null && kitty +kitten icat --silent --transfer-mode=stream --place=%pwx%ph@%pxx%py /tmp/abc-1.png >/dev/tty </dev/tty %N
+        \ %pc
+        \ kitty +kitten icat --clear --silent >/dev/tty </dev/tty %N
+
+    " Default file handler (Linux)
+    filetype * xdg-open
+
+elseif $OS == 'Darwin'
+    " macOS-specific display settings
+    " Directory preview
+    fileviewer */ tree -L 2 -F -I .git -I .DS_Store %c
+    
+    " Image and PDF handling based on session type
+    if $VIFM_SSH_SESSION == '1'
+        " SSH session - use stream mode for better performance
+        fileviewer *.jpg,*.jpeg,*.png,*.bmp,*.gif,*.xpm
+            \ kitty +kitten icat --place=%pwx%ph@%pxx%py --transfer-mode=stream %c >/dev/tty </dev/tty %N
+            \ %pc
+            \ kitty +kitten icat --clear >/dev/tty </dev/tty %N
+        
+        fileviewer *.pdf
+            \ pdftoppm %c /tmp/abc -png -f 1 > /dev/null && kitty +kitten icat --silent --transfer-mode=stream --place=%pwx%ph@%pxx%py /tmp/abc-1.png >/dev/tty </dev/tty %N
+            \ %pc
+            \ kitty +kitten icat --clear --silent >/dev/tty </dev/tty %N
+    else
+        " Local session - use file mode
+        fileviewer *.jpg,*.jpeg,*.png,*.bmp,*.gif,*.xpm
+            \ kitty +kitten icat --place=%pwx%ph@%pxx%py --transfer-mode=file %c >/dev/tty </dev/tty %N
+            \ %pc
+            \ kitty +kitten icat --clear >/dev/tty </dev/tty %N
+        
+        fileviewer *.pdf
+            \ pdftoppm %c /tmp/abc -png -f 1 > /dev/null && kitty +kitten icat --silent --transfer-mode=file --place=%pwx%ph@%pxx%py /tmp/abc-1.png >/dev/tty </dev/tty %N
+            \ %pc
+            \ kitty +kitten icat --clear --silent >/dev/tty </dev/tty %N
+    endif
+
+    " File type associations (macOS)
+    filetype *.sh echo %c                     " Shell scripts
+    filetype *.org emacsclient -n             " Org files in Emacs
+    filetype *.zsh echo %c && read "ENTER"    " Zsh scripts
+    
+    " Image file type association
+    filetype *.jpg,*.jpeg,*.png,*.bmp,*.gif,*.xpm
+        \ kitty +kitten icat --silent --transfer-mode=file %c
+    
+    " Default file handler (macOS)
+    filetype * open
+endif
+
+" ==============================================================================
+" SYSTEM-SPECIFIC CONFIGURATIONS
+" ==============================================================================
+
+" ------------------------------------------------------------------------------
+" System-Specific Settings
+" ------------------------------------------------------------------------------
+
+if $OS == 'Linux'
+    " Linux system settings
+    set trashdir=$HOME/.Trashdir
+    set vicmd=vim
+
+elseif $OS == 'Darwin'
+    " macOS system settings
+    set vicmd=nvim
+endif
+
+" ------------------------------------------------------------------------------
+" System-Specific Commands
+" ------------------------------------------------------------------------------
+
+if $OS == 'Linux'
+    " Linux-specific commands
+    command! diff vim -d %f %F
+    command! open !xdg-open %c
+
+elseif $OS == 'Darwin'
+    " macOS-specific commands
+    command! diff nvim -d %f %F
+    command! openw open -a %a %c              " Open with specific application
+    command! preview open -a Preview.app %c   " Open in Preview
+    command! gimp open -a GIMP-2.10.app %c    " Open in GIMP
+    command! safari !open -a Safari %c        " Open in Safari
+    command! chrome !/Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome --app=file://%d/%c
+endif
+
+" ------------------------------------------------------------------------------
+" System-Specific Key Mappings
+" ------------------------------------------------------------------------------
+
+if $OS == 'Linux'
+    " Clipboard operations (Linux)
+    nnoremap yd :!printf %d | xclip -selection clipboard<cr>    " Yank directory path
+    nnoremap yf :!printf %c | xclip -selection clipboard<cr>    " Yank file path
+    nnoremap yF :!printf %c:p | xclip -selection clipboard<cr>  " Yank absolute path
+
+elseif $OS == 'Darwin'
+    " Clipboard operations (macOS)
+    nnoremap yd :!printf %d | pbcopy<cr>                      " Yank directory path
+    nnoremap yf :!printf %c | pbcopy<cr>                      " Yank file path
+    nnoremap yF :!printf %c:p | pbcopy<cr>                    " Yank absolute path
+    nnoremap ym :!md-local-image %f %D<cr>                    " Yank as markdown image
+endif
+
+" ==============================================================================
+" END OF CONFIGURATION
+" ==============================================================================
+" 
+" Quick Reference:
+" - Press 'o' + space to navigate with custom directory jumper
+" - Press ';' instead of ':' for commands
+" - Press 'E' to edit files
+" - Press ',c' to edit this configuration file
+" - Press ',m' to toggle Miller view
+" - Use 'yd', 'yf', 'yF' to copy paths to clipboard
+" - Type command abbreviations: 'tn' (tabnew), 'e' (edit), 'mk' (make)
+"
+" For more help: :help or :h
+" ==============================================================================

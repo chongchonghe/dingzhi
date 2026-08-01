@@ -24,7 +24,7 @@ These apply to every task. Violating any of them is grounds for rejecting the ta
 6. **Theme is Catppuccin Mocha, dark only.** No light variant, no theme switcher, no `~/.darktheme` toggle.
 7. **Commit after every task** using Conventional Commits (`feat:`, `fix:`, `chore:`, `docs:`, `test:`, `refactor:`).
 8. **Work inside `extern/dingzhi`**, which is its own git repository. All `git` commands in this plan run from `extern/dingzhi`.
-9. **Porting source.** Tasks 9, 11, and 13 copy files out of the `tools` repo. They read `$DINGZHI_SOURCE`, which the container sets to `/home/dev/source` (`dotfiles/` and `bin/` mounted read-only), and which falls back to `$HOME/tools` on a host. It is read-only by design — never write to it.
+9. **Porting source lives in `inbox/`.** Tasks 9, 11, and 13 copy configs and scripts from `inbox/`, which is committed to this repository so it travels with any checkout or container. Copy *out* of it; never edit it in place. Delete `inbox/` once Task 13 is done — Task 18 checks that it is gone.
 
 ### Canonical group names
 
@@ -97,6 +97,8 @@ Nothing else can be verified until there is a container to verify it in. This ta
 - Create: `extern/dingzhi/tests/unit/smoke.bats`
 - Create: `extern/dingzhi/start-in-docker.md`
 - Create: `extern/dingzhi/docs/{design,plan}.md` (this plan and the spec)
+- Create: `extern/dingzhi/inbox/` (porting source: ten config directories, two
+  scripts, and the catppuccin delta theme)
 - Modify: `/Users/u1149259/tools/.gitignore` (add `extern/dingzhi/`)
 
 **Interfaces:**
@@ -178,12 +180,9 @@ and `extern/dingzhi/tests/docker-run.sh`.
 
 `docker-build.sh [sudo|nosudo|clean|both|all]` builds the variants.
 
-`docker-run.sh` mounts the working tree at `~/dingzhi` — which carries
-`docs/design.md` and `docs/plan.md` with it — and mounts the porting source
-read-only at `~/source`, exporting `DINGZHI_SOURCE`. That mount is enumerated
-rather than wholesale: exactly the ten `dotfiles/` directories and two `bin/`
-scripts the spec ships, so the content cut is enforced by the filesystem
-instead of by memory. It selects the image with
+`docker-run.sh` mounts the working tree at `~/dingzhi` and nothing else — the
+tree already carries `docs/` (design and plan) and `inbox/` (the configs and
+scripts the porting tasks copy from). It selects the image with
 `--nosudo` / `--clean`, allocates a TTY only when stdin actually is one (so it
 works from scripts), and can forward credentials with `--with-claude-auth`,
 `--ssh`, and `--gh-auth`. Each of those hands something private to whatever runs
@@ -2026,10 +2025,9 @@ Expected: 8 fail.
 
 ```bash
 cd "$DINGZHI_PATH"
-SRC="${DINGZHI_SOURCE:-$HOME/tools}"
 mkdir -p configs themes/catppuccin
 for d in kitty nvim tmux yazi vifm bat lazygit cheat; do
-    cp -R "$SRC/dotfiles/$d" "configs/$d"
+    cp -R "inbox/dotfiles/$d" "configs/$d"
 done
 # Drop the personal and stale bits that came along for the ride.
 rm -rf configs/kitty/sessions configs/kitty/trash configs/kitty/se \
@@ -2039,10 +2037,9 @@ find configs -name '*.bk' -delete
 find configs -name '*.backup.*' -delete
 ```
 
-`$DINGZHI_SOURCE` is set to `/home/dev/source` inside the container, where
-`dotfiles/` and `bin/` from the tools repo are mounted read-only. On a host it
-defaults to `$HOME/tools`. If neither exists, this task cannot proceed — say so
-rather than inventing configs.
+`inbox/` holds exactly the ten config directories and two scripts the spec
+ships, copied out of the tools repo. If it is missing, this task cannot proceed
+— say so rather than inventing configs.
 
 Then read every remaining file and remove any absolute personal path, any Latte/light theme reference, and any `current-theme.conf` include left over from the toggle. `configs/kitty/kitty.conf` must `include default-theme.conf` and nothing else theme-related; `configs/tmux/tmux.conf` should be the macOS variant (`~/tools/dotfiles/tmux/tmux.conf`) and `configs/lazygit/config.yml` the full one — the `.minimal` variants existed for Linux only and dingzhi installs the same theme everywhere.
 
@@ -2108,23 +2105,18 @@ Note: `width = 177` from the original is dropped — it hardcodes one monitor's 
 
 ```bash
 cd "$DINGZHI_PATH"
-curl -fsSL https://raw.githubusercontent.com/catppuccin/delta/main/catppuccin.gitconfig \
-    -o themes/catppuccin/delta.gitconfig
+cp inbox/delta/catppuccin.gitconfig themes/catppuccin/delta.gitconfig
 grep -q 'catppuccin-mocha' themes/catppuccin/delta.gitconfig
 ```
 
-If the file at that URL has moved, copy the local one instead:
-
-```bash
-# Host only — this checkout is not mounted into the container.
-cp ~/git/catppuccin/delta/catppuccin.gitconfig themes/catppuccin/delta.gitconfig
-```
+`inbox/delta/catppuccin.gitconfig` is a vendored copy of
+`catppuccin/delta`'s `catppuccin.gitconfig`, so this works offline and does not
+depend on the upstream URL still resolving.
 
 - [ ] **Step 6: Copy the global gitignore**
 
 ```bash
-cp "${DINGZHI_SOURCE:-$HOME/tools}/dotfiles/git/.gitignore_global" \
-   configs/git/gitignore_global
+cp inbox/dotfiles/git/.gitignore_global configs/git/gitignore_global
 ```
 
 - [ ] **Step 7: Run the tests to verify they pass**
@@ -2500,7 +2492,7 @@ Copy the vimrc across first:
 
 ```bash
 mkdir -p configs/vim
-cp "${DINGZHI_SOURCE:-$HOME/tools}/dotfiles/vim/vimrc" configs/vim/vimrc
+cp inbox/dotfiles/vim/vimrc configs/vim/vimrc
 ```
 
 - [ ] **Step 7: Write `apps/git/install.sh`**
@@ -2920,10 +2912,9 @@ Expected: 8 fail.
 
 ```bash
 cd "$DINGZHI_PATH"
-SRC="${DINGZHI_SOURCE:-$HOME/tools}"
 mkdir -p bin
-cp "$SRC/bin/myconvert" bin/myconvert
-cp "$SRC/bin/compressimage" bin/compressimage
+cp inbox/bin/myconvert bin/myconvert
+cp inbox/bin/compressimage bin/compressimage
 chmod +x bin/myconvert bin/compressimage
 ```
 
@@ -3820,7 +3811,27 @@ tests/docker-run.sh --nosudo -- bash -c 'bats tests/unit'
 
 Expected: every test passes in both.
 
-- [ ] **Step 5: Write the real README**
+- [ ] **Step 5: Remove `inbox/`**
+
+Its whole contents have been ported by now: `configs/` (Task 9), `configs/vim`
+(Task 11), `bin/` (Task 13), `themes/catppuccin` (Task 9). Keeping it would ship
+3 MB of duplicate, un-genericized configs — including the personal absolute
+paths Task 9 exists to strip.
+
+```bash
+cd "$DINGZHI_PATH"
+git rm -r --quiet inbox
+```
+
+Verify nothing still references it:
+
+```bash
+grep -rn "inbox/" --exclude-dir=.git --exclude=plan.md . && echo "STILL REFERENCED" || echo "clean"
+```
+
+Expected: `clean`.
+
+- [ ] **Step 6: Write the real README**
 
 Replace `extern/dingzhi/README.md`:
 
@@ -3907,7 +3918,7 @@ same paths your real configuration uses. The containers exist for that reason.
 MIT
 ````
 
-- [ ] **Step 6: Tag the release**
+- [ ] **Step 7: Tag the release**
 
 ```bash
 git add tests/integration README.md
@@ -3915,7 +3926,7 @@ git commit -m "test: end-to-end idempotency check and README"
 git tag -a v0.1.0 -m "dingzhi 0.1.0"
 ```
 
-- [ ] **Step 7: Final verification**
+- [ ] **Step 8: Final verification**
 
 ```bash
 tests/docker-run.sh -- bash -c 'bats tests/unit' \

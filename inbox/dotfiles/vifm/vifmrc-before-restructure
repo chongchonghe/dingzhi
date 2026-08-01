@@ -1,0 +1,511 @@
+" vim: filetype=vifm :
+" Sample configuration file for vifm on OSX (last updated: 2 June, 2019)
+" You can edit this file by hand.
+" The " character at the beginning of a line comments out the line.
+" Blank lines are ignored.
+" The basic format for each item is shown with an example.
+
+" ------------------------------------------------------------------------------
+" My configurations
+" :com[mand][!] command_name action
+" The following macros can be used in a command
+" %a is replaced with the user arguments.
+" %c the current file under the cursor.
+" %C the current file under the cursor in the other directory.
+" %f the current selected file, or files.
+" %F the current selected file, or files in the other directory.
+" %b same as %f %F.
+" %d the current directory name.
+" %D the other window directory name.
+" %m run the command in a menu window
+" ------------------------------------------------------------------------------
+
+" Swap ; and : in normal mode for easier command entry
+nnoremap ; :
+
+" command! runit ./test_radhydro_pulse_MG_int ../RadhydroPulse512.in &> log.o &
+command! runit ./test_radhydro_pulse_MG_int ./RadhydroPulse.in &> log.o &
+
+" map E to edit (e is preview)
+nnoremap E :edit<cr>
+" command! ln ln -s %f:p %D
+" absolute link
+command! lna ln -s %F 
+" relative link
+command! ln ln -s `grealpath --relative-to="." %F`
+" command! ln ln -s %d/%f %D
+command! en emacsclient -n %c
+command! dup cp %c %c.copy
+command! ll !!ls -l
+command! vivi vim %f %F -O
+command! tar tar -xf %c
+command! targz tar -xzf %c
+command! bk !backup %c
+command! date !dateit %c
+command! time !timeit %c
+command! bkr !backuprename %c
+command! subl !subl %c
+command! cdo :execute 'cd' '%D'
+" copy a file from clipboard with relative path to the other window directory
+command! cpr !cp -i %d/%a %D
+" nnoremap m :cpr<space>
+" nnoremap b :bmgo<space>
+command! o :execute 'cd' system('python3 ${MOVE_ROOT}/getdir_with_quote.py %a 2> /dev/null')
+nnoremap o :o<space>
+" command! add !o + %a %d
+command! add ![[ ! -z ${MOVE_ROOT} ]] && ${MOVE_ROOT}/mOve update %a %d || echo "MOVE_ROOT is not defined"
+command! clmake make clean && make
+command! nbconvert !/Users/chongchonghe/anaconda3/bin/jupyter nbconvert --to html %c
+command! pdfpng !pdf2png %f
+command! pngpdf !png2pdf %f
+command! merge !mergepdf
+command! chrome !/Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome --app=file://%d/%c
+command! append !append-eolder-name %c
+command! mvall !mv %C/* %c
+command! animateit !/Users/chongchonghe/local/bin/animateit -d %f -f %a
+command! animateitgif !/Users/chongchonghe/local/bin/animateit -d %d -f %a -o "%{d}.gif"
+command! marked !open -a Marked\ 2 %c
+command! safari !open -a Safari %c
+command! texstudio !open -a TexStudio.app %c
+command! Server :!sftp st
+command! sh :!sh %c
+" command! cp !cp -i %a .
+command! cp !cp -i %c %D
+command! mdorg !md2org --wrap=none %f -o "%f.org"
+" command! mv !mv '%f' '%D' " use command `m`
+command! j :execute 'cd' system('autojump %a 2> /dev/null')
+command! df df -h %m 2> /dev/null
+command! dif !diff %f %F
+command! diffrq !diff %f %F
+command! kittydiff kitty +kitten diff %f %F
+command! zip zip -r %f.zip %f
+command! run !! ./%f
+command! make !!make %a
+command! mkcd :mkdir %a | cd %a
+" command! reload :write | restart
+command! du du -sh ./%f
+" command! tn tabnext
+" command! tp tabprevious
+command! store !storefile %f
+" command! trash !trash %c
+command! backupnotion !backupnotion %c
+command! nemo !glnemo2 %c
+command! merge !pdfunite ./*.pdf merge.pdf
+command! texcl !texcl2
+command! code !code .
+command! cs !cursor %d
+command! codedif !code -d %f %F
+command! talkmd !talkmd %a
+command! rmsp !remove_space %c
+command! mkproj !mkproj .
+command! texpad !open -a texpad.app %c
+command! vi !vi %a
+" Define a custom command to run a quokka test: "./$1 ../*.in &> log.o &
+command! qk !runqk %c || echo "failed" >> failed.txt
+command! logv !less +F %c
+command! logvv !osascript -e "tell application \"Terminal\" to do script \"less +F %d/%c\""
+command! mvd mv "$(ls -t ~/Downloads/* 2>/dev/null | head -n 1)" .
+command! cpover !cp -i %c %C
+command! oo open %c
+command! ndir mkdir %c.1
+
+nnoremap r :!!
+
+ca tn tabnew
+ca tc tabclose
+ca e en
+ca mc make clean
+ca mk make
+ca mm marked
+ca md mkdir
+
+set sort=+name
+
+"set find=find . -name=$1
+"set findprg="find %s %a -print , -type d \( ! -readable -o ! -executable \) -prune"
+set findprg="find %s %a"
+
+" remove confirmation for deletion into trash only
+set confirm-=delete
+
+" ------------------------------------------------------------------------------
+" The default vifmrc and its modification
+" ------------------------------------------------------------------------------
+
+" Command used to edit files in various contexts.  The default is vim.
+" If you would like to use another vi clone such as Elvis or Vile
+" you will need to change this setting.
+
+set vicmd=nvim
+" set vicmd=elvis\ -G\ termcap
+" set vicmd=vile
+
+" This makes vifm perform file operations on its own instead of relying on
+" standard utilities like `cp`.  While using `cp` and alike is a more universal
+" solution, it's also much slower when processing large amounts of files and
+" doesn't support progress measuring.
+
+set syscalls
+
+" Trash Directory
+" The default is to move files that are deleted with dd or :d to
+" the trash directory.  If you change this you will not be able to move
+" files by deleting them and then using p to put the file in the new location.
+" I recommend not changing this until you are familiar with vifm.
+" This probably shouldn't be an option.
+
+" set notrash
+
+" This is how many directories to store in the directory history.
+
+set history=100
+
+" Automatically resolve symbolic links on l or Enter.
+
+set nofollowlinks
+
+" With this option turned on you can run partially entered commands with
+" unambiguous beginning using :! (e.g. :!Te instead of :!Terminal or :!Te<tab>).
+
+" set fastrun
+
+" Natural sort of (version) numbers within text.
+
+set sortnumbers
+
+" Maximum number of changes that can be undone.
+
+set undolevels=100
+
+" Use Vim's format of help file (has highlighting and "hyperlinks").
+" If you would rather use a plain text help file set novimhelp.
+
+set vimhelp
+
+" If you would like to run an executable file when you
+" press return on the file name set this.
+
+set norunexec
+
+" Selected color scheme
+
+" colorscheme semidarkdesert
+" colorscheme desert
+"colorscheme papercolor-light
+colorscheme papercolor-dark
+
+" Format for displaying time in file list. For example:
+" TIME_STAMP_FORMAT=%m/%d-%H:%M
+" See man date or man strftime for details.
+
+set timefmt=%y-%m-%d\ %H:%M
+
+" Show list of matches on tab completion in command-line mode
+
+set wildmenu
+
+" Display completions in a form of popup with descriptions of the matches
+
+set wildstyle=popup
+
+" Display suggestions in normal, visual and view modes for keys, marks and
+" registers (at most 5 files).  In other view, when available.
+
+set suggestoptions=normal,visual,view,otherpane,keys,marks,registers
+
+" Ignore case in search patterns unless it contains at least one uppercase
+" letter
+
+set ignorecase
+set smartcase
+
+" Don't highlight search results automatically
+
+set nohlsearch
+
+" Use increment searching (search while typing)
+set incsearch
+
+" Try to leave some space from cursor to upper/lower border in lists
+
+set scrolloff=4
+
+" Don't do too many requests to slow file systems
+
+set slowfs=curlftpfs
+
+" Set custom status line look
+
+set statusline="  Hint: %z%= %A %10u:%-7g %15s %20d  "
+
+" ------------------------------------------------------------------------------
+
+" :mark mark /full/directory/path [filename]
+
+" mark b ~/bin/
+mark h ~/
+" mark u ~/usr/
+
+" ------------------------------------------------------------------------------
+
+" Enable miller view by default
+set millerview
+set milleroptions=lsize:1,csize:2,rsize:1,rpreview:dirs
+"set fillchars=millersep:│
+" Toggle Miller view in the current pane with ,m
+nnoremap ,m :set millerview!<CR>
+" Toggle Miller view in both panes with ,M
+nnoremap ,M :set nomillerview!<CR>
+" Toggle right preview between dirs/files/all
+nnoremap ,p :set milleroptions+=rpreview:dirs<CR>
+nnoremap ,f :set milleroptions+=rpreview:files<CR>
+nnoremap ,a :set milleroptions+=rpreview:all<CR>
+
+" ------------------------------------------------------------------------------
+" Syntax highlighting in preview
+"
+" Explicitly set highlight type for some extensions
+
+" 256-color terminal
+fileviewer *.[ch],*.[ch]pp highlight -O xterm256 -s dante --syntax c %c
+fileviewer Makefile,Makefile.* highlight -O xterm256 -s dante --syntax make %c
+fileviewer CMakelists.txt highlight -O xterm256 -s dante --syntax cmake %c
+fileviewer *.py,*.md,*.sh,*.zsh,*.bash,*.html,*.org,*.toml,*.yaml,*.yml,*.js,*.json,*.bib highlight -O xterm256 -s dante %c
+
+" 16-color terminal
+" fileviewer *.c,*.h highlight -O ansi -s dante %c
+"
+" Or leave it for automatic detection
+"
+" fileviewer *[^/] pygmentize -O style=monokai -f console256 -g
+
+" Displaying pictures in terminal
+
+" fileviewer *.jpg,*.png shellpic %c
+
+" Open all other files with default system programs (you can also remove all
+" :file[x]type commands above to ensure they don't interfere with system-wide
+" settings).  By default all unknown files are opened with 'vi[x]cmd'
+" uncommenting one of lines below will result in ignoring 'vi[x]cmd' option
+" for unknown file types.
+" For OS X:
+" filetype * open
+
+" ------------------------------------------------------------------------------
+
+" What should be saved automatically between vifm sessions.  Drop "savedirs"
+" value if you don't want vifm to remember last visited directories for you.
+" set vifminfo=dhistory,savedirs,chistory,state,tui,shistory,
+"     \phistory,fhistory,dirstack,registers,bookmarks,bmarks
+set vifminfo=dhistory,chistory,state,tui,shistory,tabs,
+    \phistory,fhistory,dirstack,registers,bookmarks,bmarks
+
+" ------------------------------------------------------------------------------
+
+" Examples of configuring both panels
+
+" Customize view columns a bit (enable ellipsis for truncated file names)
+"
+"set viewcolumns=*{name}..,{mtime},{#|},6{}.
+set viewcolumns=*{name}..,6{size},16{mtime}
+
+" Filter-out build and temporary files
+"
+" filter! /^.*\.(lo|o|d|class|py[co])$|.*~$/
+
+" ------------------------------------------------------------------------------
+
+" Sample mappings
+
+" Start shell in current directory
+nnoremap s :shell<cr>
+
+" Display sorting dialog
+nnoremap S :sort<cr>
+
+" Toggle visibility of preview window
+nnoremap w :view<cr>
+vnoremap w :view<cr>gv
+
+" " Open file in new MacVim tab
+" nnoremap o :!mvim --remote-tab-silent %f<cr>
+" " Open file in new MacVim window
+" nnoremap O :!mvim %f<cr>
+
+" " Open file in the background using its default program
+" nnoremap gb :!open -g %f<cr>
+
+" " View preview in Quick Look
+" nnoremap q :!qlmanage -p %f > /dev/null 2>&1<cr>
+" " Unhide builtin q* keymaps
+" nnoremap q: q:
+" nnoremap q/ q/
+" nnoremap q? q?
+" nnoremap q= q=
+
+" " Mappings for faster renaming
+" nnoremap I cw<c-a>
+" nnoremap cc cw<c-u>
+" nnoremap A cw
+
+" Open editor to edit vifmrc and apply settings after returning to vifm
+nnoremap ,c :write | edit $MYVIFMRC | restart<cr>
+" " Open MacVim to edit vifmrc
+" nnoremap ,C :!mvim --remote-tab-silent $MYVIFMRC &<cr>
+
+" " Toggle wrap setting on ,w key
+" nnoremap ,w :set wrap!<cr>
+
+" Example of standard two-panel file managers mappings
+" nnoremap <f3> :!less %f<cr>
+" nnoremap <f4> :edit<cr>
+" nnoremap <f5> :copy<cr>
+" nnoremap <f6> :move<cr>
+" nnoremap <f7> :mkdir<space>
+" nnoremap <f8> :delete<cr>
+
+" ------------------------------------------------------------------------------
+
+" Various customization examples
+
+" Use ag (the silver searcher) instead of grep
+"
+" set grepprg='ag --line-numbers %i %a %s'
+
+" Add additional place to look for executables
+"
+" let $PATH = $HOME.'/bin/fuse:'.$PATH
+
+" Block particular shortcut
+"
+" nnoremap <left> <nop>
+
+" Export IPC name of current instance as environment variable and use it to
+" communicate with the instance later.
+"
+" It can be used in some shell script that gets run from inside vifm, for
+" example, like this:
+"     vifm --server-name "$VIFM_SERVER_NAME" --remote +"cd '$PWD'"
+"
+" let $VIFM_SERVER_NAME = v:servername
+
+" ------------------------------------------------------------------------------
+" The file type is for the default programs to be used with
+" a file extension.
+" :filetype pattern1,pattern2 defaultprogram,program2
+" :fileviewer pattern1,pattern2 consoleviewer
+" The other programs for the file type can be accessed with the :file command
+" The command macros like %f, %F, %d, %D may be used in the commands.
+" The %a macro is ignored.  To use a % you must put %%.
+
+fileviewer *.out
+  \ tail -f
+
+filetype *.out
+    \ tail -f
+
+" ------------------------------------------------------------------------------
+" System-specific configurations
+" ------------------------------------------------------------------------------
+
+let $OS = system('uname -s')
+
+if $OS == 'Linux'
+    set trashdir=$HOME/.Trashdir
+
+    set vicmd=vim
+    command! diff vim -d %f %F
+
+    " Yank current directory path into the clipboard
+    nnoremap yd :!printf %d | clipboard<cr>
+    " Yank current file path into the clipboard
+    nnoremap yf :!printf %c | xclip<cr>
+    nnoremap yF :!printf %c:p | xclip<cr>
+
+    " filetype *.o,*.out,*.log less +F
+    " fileviewer *.o,*.out,*.log tail -f
+
+    " SSH session - use stream mode
+    fileviewer *.jpg,*.jpeg,*.png,*.bmp,*.gif,*.xpm
+        \ kitty +kitten icat --place=%pwx%ph@%pxx%py --transfer-mode=stream %c >/dev/tty </dev/tty %N
+        \ %pc
+        \ kitty +kitten icat --clear >/dev/tty </dev/tty %N
+    fileviewer *.pdf
+        \ pdftoppm %c /tmp/abc -png -f 1 > /dev/null && kitty +kitten icat --silent --transfer-mode=stream --place=%pwx%ph@%pxx%py /tmp/abc-1.png >/dev/tty </dev/tty %N
+        \ %pc
+        \ kitty +kitten icat --clear --silent >/dev/tty </dev/tty %N
+
+    filetype * xdg-open
+
+    command! open !xdg-open %c
+elseif $OS == 'Darwin'
+    command! openw open -a %a %c
+    command! preview open -a Preview.app %c
+    command! gimp open -a GIMP-2.10.app %c
+
+    set vicmd=nvim
+    command! diff nvim -d %f %F
+
+    " Yank current directory path into the clipboard
+    nnoremap yd :!printf %d | pbcopy<cr>
+    " Yank current file path into the clipboard
+    nnoremap yf :!printf %c | pbcopy<cr>
+    nnoremap yF :!printf %c:p | pbcopy<cr>
+    " Yank current file path (relative to the directory in the other window) as
+    " markdown format into the clipboard
+    nnoremap ym :!md-local-image %f %D<cr>
+
+    filetype *.sh
+        \ echo %c
+    filetype *.org
+        \ emacsclient -n
+    filetype *.zsh
+        \ echo %c && read "ENTER"
+
+    fileviewer */ tree -L 2 -F -I .git -I .DS_Store %c
+
+    if $VIFM_SSH_SESSION == '1'
+        " SSH session - use stream mode
+        fileviewer *.jpg,*.jpeg,*.png,*.bmp,*.gif,*.xpm
+            \ kitty +kitten icat --place=%pwx%ph@%pxx%py --transfer-mode=stream %c >/dev/tty </dev/tty %N
+            \ %pc
+            \ kitty +kitten icat --clear >/dev/tty </dev/tty %N
+        fileviewer *.pdf
+            \ pdftoppm %c /tmp/abc -png -f 1 > /dev/null && kitty +kitten icat --silent --transfer-mode=stream --place=%pwx%ph@%pxx%py /tmp/abc-1.png >/dev/tty </dev/tty %N
+            \ %pc
+            \ kitty +kitten icat --clear --silent >/dev/tty </dev/tty %N
+    else
+        " Local session - use file mode
+        fileviewer *.jpg,*.jpeg,*.png,*.bmp,*.gif,*.xpm
+            \ kitty +kitten icat --place=%pwx%ph@%pxx%py --transfer-mode=file %c >/dev/tty </dev/tty %N
+            \ %pc
+            \ kitty +kitten icat --clear >/dev/tty </dev/tty %N
+        fileviewer *.pdf
+            \ pdftoppm %c /tmp/abc -png -f 1 > /dev/null && kitty +kitten icat --silent --transfer-mode=file --place=%pwx%ph@%pxx%py /tmp/abc-1.png >/dev/tty </dev/tty %N
+            \ %pc
+            \ kitty +kitten icat --clear --silent >/dev/tty </dev/tty %N
+    endif
+    filetype *.jpg,*.jpeg,*.png,*.bmp,*.gif,*.xpm
+        \ kitty +kitten icat --silent --transfer-mode=file %c
+
+    " Check if we're in kitty terminal by looking for KITTY_WINDOW_ID environment variable
+    "if $KITTY_WINDOW_ID != ''
+    ""    " Check for custom SSH flag
+    "elseif 0
+    ""    fileviewer *.jpg,*.jpeg,*.png,*.bmp,*.gif,*.xpm
+    ""        \ /Users/cche/anaconda3/bin/imgcat --width %pw --height %ph %c:p %pd
+    ""    filetype *.jpg,*.jpeg,*.png,*.bmp,*.gif,*.xpm
+    ""        \ sh -c '/Users/cche/anaconda3/bin/imgcat "%c"; read -n1'
+    ""    fileviewer *.pdf
+    ""      \ pdftoppm %c /tmp/abc -jpeg -r 300 -f 1 > /dev/null && /Users/cche/anaconda3/bin/imgcat --width %pw --height %ph /tmp/abc-1.jpg %pd
+    ""      " \ convert %c /tmp/abc.jpg > /dev/null && /Users/cche/anaconda3/bin/imgcat --width %pw --height %ph /tmp/abc.jpg %pd
+    ""    " filetype *.pdf
+    ""    "     \ sh -c 'pdftoppm "%c" /tmp/abc -jpeg -r 300 -f 1 > /dev/null && /Users/cche/anaconda3/bin/imgcat /tmp/abc-1.jpg; read -n1'
+    "else
+    ""    fileviewer *.jpg,*.jpeg,*.png,*.bmp,*.gif,*.xpm
+    ""        \ wezterm imgcat --width %pw --height %ph %c:p %pd
+    "endif
+
+    filetype * open
+endif
+

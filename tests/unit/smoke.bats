@@ -59,37 +59,33 @@ setup() {
     [ -f "$DINGZHI_PATH/start-in-docker.md" ]
 }
 
-@test "the porting source is mounted, and read-only" {
-    # Needed by plan tasks 9, 11, and 13. Absent when dingzhi is checked out
-    # standalone, which is fine — those tasks are already done by then.
-    [ -n "${DINGZHI_SOURCE:-}" ] || skip "no porting source mounted"
+@test "the porting source travels with the repository" {
+    # Needed by plan tasks 9, 11, and 13. Task 18 deletes inbox/ once every
+    # piece of it has been ported, so its absence is expected at the end.
+    [ -d "$DINGZHI_PATH/inbox" ] || skip "inbox/ already ported and removed"
 
-    for d in dotfiles/kitty dotfiles/nvim dotfiles/tmux dotfiles/yazi \
-             dotfiles/vifm dotfiles/bat dotfiles/lazygit dotfiles/cheat \
-             dotfiles/git dotfiles/vim; do
-        [ -e "$DINGZHI_SOURCE/$d" ] || { echo "missing source: $d"; return 1; }
+    for d in kitty nvim tmux yazi vifm bat lazygit cheat git vim; do
+        [ -d "$DINGZHI_PATH/inbox/dotfiles/$d" ] \
+            || { echo "missing source: dotfiles/$d"; return 1; }
     done
-    for f in bin/myconvert bin/compressimage; do
-        [ -f "$DINGZHI_SOURCE/$f" ] || { echo "missing source: $f"; return 1; }
+    for f in bin/myconvert bin/compressimage delta/catppuccin.gitconfig; do
+        [ -f "$DINGZHI_PATH/inbox/$f" ] || { echo "missing source: $f"; return 1; }
     done
-
-    run touch "$DINGZHI_SOURCE/dotfiles/kitty/should-not-be-writable"
-    [ "$status" -ne 0 ]
 }
 
-@test "the porting source exposes only what the spec ships" {
-    [ -n "${DINGZHI_SOURCE:-}" ] || skip "no porting source mounted"
+@test "the porting source holds only what the spec ships" {
+    [ -d "$DINGZHI_PATH/inbox" ] || skip "inbox/ already ported and removed"
 
-    # Deliberately excluded by the spec. If these appear, the mount was widened
-    # and someone can port content the design says stays behind.
+    # Deliberately excluded by the spec. If these appear, someone widened the
+    # copy and can now port content the design says stays behind.
     for d in doom raycast spacemacs vscode iTerm2 Rectangle mbsync \
              markdown-themes org-styles ghostty; do
-        [ ! -e "$DINGZHI_SOURCE/dotfiles/$d" ] \
-            || { echo "unexpectedly exposed: dotfiles/$d"; return 1; }
+        [ ! -e "$DINGZHI_PATH/inbox/dotfiles/$d" ] \
+            || { echo "unexpectedly present: dotfiles/$d"; return 1; }
     done
     for f in arxiv ads mathpix quokka runqk qkclsh mkproj toggle-theme; do
-        [ ! -e "$DINGZHI_SOURCE/bin/$f" ] \
-            || { echo "unexpectedly exposed: bin/$f"; return 1; }
+        [ ! -e "$DINGZHI_PATH/inbox/bin/$f" ] \
+            || { echo "unexpectedly present: bin/$f"; return 1; }
     done
 }
 

@@ -1,0 +1,522 @@
+" vim: filetype=vifm :
+" ==============================================================================
+" VIFM Configuration File
+" ==============================================================================
+" Personal vifm configuration for macOS and Linux.
+"
+" Note: vifm does not support inline comments — all comments must be on
+" separate lines beginning with a double quote (").
+" ==============================================================================
+
+
+" ==============================================================================
+" BASIC SETTINGS
+" ==============================================================================
+
+" Use vifm's built-in file operations (faster, supports progress measurement)
+set syscalls
+
+" Directory history size
+set history=100
+
+" Don't automatically resolve symbolic links
+set nofollowlinks
+
+" Natural sort of version numbers within text
+set sortnumbers
+
+" Maximum number of changes that can be undone
+set undolevels=100
+
+" Use Vim's help file format (highlighting and hyperlinks)
+set vimhelp
+
+" Don't run executable files when pressing return
+set norunexec
+
+" Skip confirmation dialog when deleting to trash
+set confirm-=delete
+
+" Use $EDITOR as the default editor; 'i' opens the file under cursor
+set vicmd=$EDITOR
+nnoremap i :edit %c<cr>
+
+
+" ==============================================================================
+" SEARCH AND NAVIGATION
+" ==============================================================================
+
+" Ignore case unless the pattern contains uppercase letters
+set ignorecase
+set smartcase
+
+" Don't highlight search results automatically
+set nohlsearch
+
+" Search incrementally as you type
+set incsearch
+
+" Keep this many lines visible above/below the cursor
+set scrolloff=4
+
+
+" ==============================================================================
+" APPEARANCE AND UI
+" ==============================================================================
+
+" Date/time format shown in file listings
+set timefmt=%y%m%d\ %H:%M
+
+" Show completion matches in a popup on Tab
+set wildmenu
+set wildstyle=popup
+
+" Show suggestions in all relevant modes
+set suggestoptions=normal,visual,view,otherpane,keys,marks,registers
+
+" Status line: line count, git branch, free space
+set statusline=" L=%L  %{system('git rev-parse --abbrev-ref HEAD 2>/dev/null || echo not git')}%= %a"
+
+
+" ==============================================================================
+" VIEW COLUMNS AND LAYOUT
+" ==============================================================================
+
+" Miller (three-column) layout proportions
+" lsize/csize/rsize are relative widths; rpreview:dirs shows dir previews
+set milleroptions=csize:1,rsize:2,rpreview:dirs
+
+
+" ==============================================================================
+" SESSION PERSISTENCE
+" ==============================================================================
+
+" State saved between vifm sessions
+set vifminfo=dhistory,chistory,state,tui,shistory,tabs,
+    \phistory,fhistory,dirstack,registers,bookmarks,bmarks
+
+
+" ==============================================================================
+" PERFORMANCE
+" ==============================================================================
+
+" Reduce polling frequency for slow/remote file systems
+set slowfs=curlftpfs
+
+
+" ==============================================================================
+" SORTING AND FILTERING
+" ==============================================================================
+
+" Default sort order: ascending by name
+set sort=+name
+
+" Find program (use %s for path, %a for extra args)
+set findprg="find %s %a"
+
+
+" ==============================================================================
+" KEY MAPPINGS
+" ==============================================================================
+
+" --- Command entry ---
+" Swap ; and : so ; enters command mode (saves one keystroke)
+nmap ; :
+
+" --- View modes ---
+" Single-column view
+nnoremap a :only<cr>e
+" Toggle preview pane
+nnoremap w :view<cr>
+vnoremap w :view<cr>gv
+" Miller view: enable (two-pane)
+nnoremap ,m :only<CR> :set millerview<CR>
+" Miller view: enable (split pane)
+nnoremap ,s :vs<CR> :set nomillerview<CR> <tab> :set nomillerview<CR>
+" Miller view: toggle
+nnoremap ,M :set nomillerview!<CR>
+" Miller view: right pane previews directories only
+nnoremap ,d :set milleroptions+=rpreview:dirs<CR>
+" Miller view: right pane previews everything
+nnoremap ,p :set milleroptions+=rpreview:all<CR>
+
+" --- Navigation ---
+" Jump 5 lines at a time with Shift+J/K
+nnoremap J 5j
+nnoremap K 5k
+" Panel resizing
+nnoremap [ <c-w>2<
+nnoremap ] <c-w>2>
+" Quick cd using the 'o' command (autojump-style)
+nnoremap o :o<space>
+" Zoxide jump (frecency-based)
+nnoremap ,z :z<space>
+
+" --- File actions ---
+" Open shell in current directory
+nnoremap s :shell<cr>
+" Launch a kitty vsplit and run claude in the current directory
+nnoremap cc :!kitten @ launch --location=vsplit --cwd=%d claude &<cr>
+" Run a shell command (!! stays in shell until you exit)
+nnoremap r :!!
+" Sort dialog
+nnoremap S :sort<cr>
+" Quit
+nnoremap q :qa<cr>
+" Open lazygit
+nnoremap ,g :!lazygit<cr>
+
+" --- Informational ---
+" Count all files recursively under current directory
+nnoremap ,f :execute 'echo' system('find . -type f | wc -l')<cr>
+" Show current git branch
+nnoremap gs :echo system('git rev-parse --abbrev-ref HEAD 2>/dev/null || echo not git')<cr>
+
+" --- Config ---
+" Reload vifmrc
+nnoremap ,c :write | edit $MYVIFMRC | restart<cr>
+
+
+" ==============================================================================
+" COMMAND ABBREVIATIONS
+" ==============================================================================
+
+" Tab management
+ca tn tabnew
+ca tc tabclose
+
+" Common aliases
+ca e  en
+ca ed emacsdiff
+ca mc make clean
+ca mk make
+ca mm marked
+ca md mkdir
+
+
+" ==============================================================================
+" CUSTOM COMMANDS
+" ==============================================================================
+" Macro reference:
+"   %a  user arguments       %c  current file under cursor
+"   %C  current file (other pane)  %f  selected file(s)
+"   %F  selected file(s) in other pane  %b  %f %F combined
+"   %d  current directory    %D  other pane directory
+"   %m  run in menu window
+
+" --- Symbolic links ---
+command! lna ln -s %F
+command! ln  !f=%F; ln -s "$(python3 -c "import os,sys; print(os.path.relpath(sys.argv[1],'.'))" "$f")"
+
+" Link the folder under the cursor into the global claude skills dir
+" skill  = absolute link target; skillr = relative link target
+command! skill  !ln -s %d/%c ~/.claude/skills/
+command! skillr !ln -s "$(python3 -c "import os,sys; print(os.path.relpath(sys.argv[1], sys.argv[2]))" %d/%c ~/.claude/skills)" ~/.claude/skills/%c
+
+" --- File operations ---
+command! dup    cp %c %c.copy
+command! cp     !cp -i %c %D
+command! rsync  !rsync -ah --info=progress2 %c %D
+command! cpover !cp -i %c %C
+command! mvall  !mv %C/* %c
+
+" --- Backup and versioning ---
+command! bk    !backup %c
+command! bkr   !backuprename %c
+command! date  !dateit %c
+command! mtime !mtimeit %c
+command! time  !timeit %c
+
+" --- Directory operations ---
+command! cdo   :execute 'cd' '%D'
+nnoremap ,o    :execute 'cd' '%D'<cr>
+command! mkcd  :mkdir %a | cd %a
+command! ndir  mkdir %c.1
+command! finder !open .
+command! fd !open .
+
+" --- Downloads ---
+" Move the most recently downloaded file into the current directory
+command! mvd mv "$(ls -t ~/Downloads/* 2>/dev/null | head -n 1)" .
+
+" --- Editor and viewer launchers ---
+command! vivi      $EDITOR %f %F -O
+command! vi        !vi %a
+command! subl      !subl %c
+command! code      !code .
+command! cursor    !cursor %d
+command! codedif   !code -d %f %F
+command! texpad    !open -a texpad.app %c
+command! texstudio !open -a TexStudio.app %c
+
+" --- PDF and image operations ---
+command! pdfpng    !pdf2png --low-res %f
+command! merge     !pdfunite ./*.pdf merge.pdf
+command! pngpdf    !png2pdf %f
+command! animateit    !~/tools/bin/animateit -d %f
+command! animateitgif !~/tools/bin/animateit -d %f -o "%{f}.gif"
+command! compressv    !~/tools/bin/compressv %f
+
+" --- Document viewers ---
+command! marked !open -a Marked\ 2 %c
+command! safari !open -a Safari %c
+command! chrome !/Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome --app=file://%d/%c
+
+" --- File format conversion ---
+command! nbconvert !/Users/chongchonghe/anaconda3/bin/jupyter nbconvert --to html %c
+command! cvto      myconvert %c %a
+command! mdorg     !md2org --wrap=none %f -o "%f.org"
+command! unzip     !unzip %f
+
+" Clear kitty image display
+command! cl !kitty +kitten icat --clear >/dev/tty </dev/tty %N
+
+" --- Build systems ---
+command! make    !!make %a
+command! clmake  make clean && make
+command! mkproj  !mkproj .
+
+" --- Version control ---
+command! add git add %f
+command! gst git status
+command! git git clone %a
+command! Server :!sftp st
+command! gmv git mv %f %D
+
+" --- Text processing ---
+command! rmsp   !remove_space %c
+command! talkmd !talkmd %a
+command! texcl  !texcl2
+
+" --- Archive operations ---
+command! tar    tar -xf %c
+command! targz  tar -xzf %c
+command! zip    zip -r %f.zip %f
+
+" --- System / utility ---
+command! ll  !!ls -l
+command! df  df -h %m 2> /dev/null
+command! du  du -sh ./%f
+command! run !! ./%f
+command! sh  :!sh %c
+
+" --- File comparison ---
+command! dif      !diff -qr --exclude='.git' --no-dereference %f %F
+command! ddif     !compare-folders -x ".git/*" -x ".DS_Store" %f %F
+command! kittydiff kitty +kitten diff %f %F
+
+" --- Navigation helpers (autojump / mOve / zoxide) ---
+command! j    :execute 'cd' system('autojump %a 2> /dev/null')
+command! o    :execute 'cd' system('python3 ${MOVE_ROOT}/getdir_with_quote.py %a 2> /dev/null')
+command! oadd ![[ ! -z ${MOVE_ROOT} ]] && ${MOVE_ROOT}/mOve update %a %d || echo "MOVE_ROOT is not defined"
+
+" Feed every visited directory into zoxide's frecency database
+autocmd DirEnter * !zoxide add %d > /dev/null 2>&1 &
+
+" --- Log viewing ---
+command! lv  !less -R +F %c
+command! lvv !osascript -e "tell application \"Terminal\" to do script \"less +F %d/%c\""
+
+" --- Scientific computing ---
+command! runit  ./test_radhydro_pulse_MG_int ./RadhydroPulse.in &> log.o &
+command! qk     !runqk %c || echo "failed" >> failed.txt
+command! nemo   !glnemo2 %c
+command! fc     !~/quokka/extern/amrex/Tools/Plotfile/fcompare.gnu.x86-trento.ex %f %F && read "press ENTER"
+
+" --- Backup and storage ---
+command! store        !store-files download %f
+command! backupnotion !backupnotion %c
+
+
+" ==============================================================================
+" BOOKMARKS
+" ==============================================================================
+
+mark h ~/
+
+
+" ==============================================================================
+" FILE TYPE ASSOCIATIONS (cross-platform)
+" ==============================================================================
+
+" Open log/output files with less in follow mode
+filetype *.log,*.out less -R +F
+
+" Archive previews
+fileviewer *.tar.gz tar -tzf
+fileviewer *.zip    unzip -Z1
+
+" Git directory status preview
+fileviewer .git/ git status %d %pu
+
+" Directory tree preview
+"fileviewer */ tree -a -L 1 -F -I .DS_Store %c
+"fileviewer */ eza -a --level=1 -F --ignore-glob=".DS_Store" --tree %c
+fileviewer */ eza -a --level=2 -F --ignore-glob=".DS_Store" --tree --color=always %c
+
+
+" ==============================================================================
+" PLATFORM-SPECIFIC CONFIGURATION
+" ==============================================================================
+
+let $OS = system('uname -s')
+
+
+" ------------------------------------------------------------------------------
+" Linux
+" ------------------------------------------------------------------------------
+
+if $OS == 'Linux'
+
+    " Directory tree preview
+    fileviewer */ tree -L 2 -F -I .git %c
+
+    " --- Trash (andreafrancia/trash-cli) ---
+    " Activated only when $TRASHCLIDIR is set in the environment.
+    " Commands mirror the trashcli shell function: put/list/restore/empty/rm.
+    if $TRASHCLIDIR != ''
+        " Disable vifm's built-in trash; dd is remapped below to trash-put
+        set notrash
+
+        nnoremap dd :execute '!trash-put --trash-dir=$TRASHCLIDIR %f'<CR>
+        vnoremap dd :execute '!trash-put --trash-dir=$TRASHCLIDIR %f'<CR>
+
+        if $TRASHCLIDIRS != ''
+            nnoremap ds :execute '!trash-put --trash-dir=$TRASHCLIDIRS %f'<CR>
+            vnoremap ds :execute '!trash-put --trash-dir=$TRASHCLIDIRS %f'<CR>
+        endif
+
+        " filter is probably not required
+        "nnoremap dd :execute '!trash-put --trash-dir=$TRASHCLIDIR %f' | filter!<CR>
+        "vnoremap dd :execute '!trash-put --trash-dir=$TRASHCLIDIR %f' | filter!<CR>
+
+        " :trashlist    — show all trashed files with their original paths and dates
+        command! trashlist    !trash-list --trash-dir=$TRASHCLIDIR
+
+        " :trashrestore — interactive restore (select by number at the prompt)
+        command! trashrestore !trash-restore --trash-dir=$TRASHCLIDIR
+
+        " :trashempty   — permanently delete everything in the trash
+        command! trashempty   !trash-empty --trash-dir $TRASHCLIDIR
+
+        " :trashrm <pattern> — remove matching items from trash without restoring
+        command! trashrm      !trash-rm %a
+    else
+        " $TRASHCLIDIR not set: block dd and trash commands with a clear warning
+        set notrash
+        nnoremap dd :echo 'dd disabled: set $TRASHCLIDIR to enable trash-cli'<cr>
+        vnoremap dd :echo 'dd disabled: set $TRASHCLIDIR to enable trash-cli'<cr>
+        command! trashlist    echo 'trashlist disabled: set $TRASHCLIDIR to enable trash-cli'
+        command! trashrestore echo 'trashrestore disabled: set $TRASHCLIDIR to enable trash-cli'
+        command! trashempty   echo 'trashempty disabled: set $TRASHCLIDIR to enable trash-cli'
+        command! trashrm      echo 'trashrm disabled: set $TRASHCLIDIR to enable trash-cli'
+    endif
+
+    " Open files with default handler
+    nnoremap E :edit<cr>
+
+    " Editor integration
+    command! diff $EDITOR -d %f %F
+    command! sb   sbatch %f
+
+    " Clipboard (X11)
+    nnoremap yd :!printf %d | clipboard<cr>
+    nnoremap yf :!printf %c | xclip<cr>
+    nnoremap yF :!printf %c:p | xclip<cr>
+    nnoremap yr :!python3 -c "import os,sys; print(os.path.relpath(sys.argv[1], sys.argv[2]))" %f %D | xclip<cr>
+
+    " Image preview via kitty icat (SSH-compatible stream mode)
+    fileviewer *.jpg,*.jpeg,*.png,*.bmp,*.gif,*.xpm
+        \ kitty +kitten icat --place=%pwx%ph@%pxx%py --transfer-mode=stream %c >/dev/tty </dev/tty %N
+        \ %pc
+        \ kitty +kitten icat --clear >/dev/tty </dev/tty %N
+
+    " PDF preview via kitty icat
+    fileviewer *.pdf
+        \ pdftoppm %c /tmp/abc -png -f 1 > /dev/null && kitty +kitten icat --silent --transfer-mode=stream --place=%pwx%ph@%pxx%py /tmp/abc-1.png >/dev/tty </dev/tty %N
+        \ %pc
+        \ kitty +kitten icat --clear --silent >/dev/tty </dev/tty %N
+
+    " Open images with kitty icat
+    filetype *.jpg,*.jpeg,*.png,*.bmp,*.gif,*.xpm
+        \ kitty +kitten icat --silent --transfer-mode=stream %c && read "ENTER"
+
+    " Default text preview with bat (syntax highlighting)
+    fileviewer * bat --color=always --style=plain --paging=never --line-range=:2000 %c
+
+
+" ------------------------------------------------------------------------------
+" macOS
+" ------------------------------------------------------------------------------
+
+elseif $OS == 'Darwin'
+
+    " Directory tree preview
+    fileviewer */ /opt/homebrew/bin/tree -L 2 -I .git -I .DS_Store %c
+
+    " Emacs client integration
+    command! en    emacsclient -n %c 2> /dev/null
+    command! ediff emacsclient -n --eval "(ediff-files \"%f\" \"%F\")"
+    nnoremap E :en<cr>
+
+    " Diff
+    command! diff nvim -d "%f" "%F"
+
+    " macOS-specific utilities
+    command! openw    open -a %a %c
+    command! preview  open -a Preview.app %c
+    command! gimp     open -a GIMP-2.10.app %c
+    command! oo       open .
+    command! gitignore gibo dump %a >> .gitignore
+
+    " Clipboard (pbcopy)
+    nnoremap yd :!printf %d | pbcopy<cr>
+    nnoremap yf :!printf %c | pbcopy<cr>
+    nnoremap yF :!printf %c:p | pbcopy<cr>
+    nnoremap yr :!python3 -c "import os,sys; print(os.path.relpath(sys.argv[1], sys.argv[2]))" %f %D | pbcopy<cr>
+    nnoremap ym :!md-local-image %f %D<cr>
+
+    " File type handlers
+    filetype *.sh  echo %c
+    filetype *.org emacsclient -n
+    filetype *.zsh echo %c && read "ENTER"
+
+    " Image and PDF preview — stream mode for SSH, native for local
+    if $VIFM_SSH_SESSION == '1'
+        " SSH: use stream transfer mode for kitty icat compatibility
+        fileviewer *.jpg,*.jpeg,*.png,*.bmp,*.gif,*.xpm
+            \ kitty +kitten icat --place=%pwx%ph@%pxx%py --transfer-mode=stream %c >/dev/tty </dev/tty %N
+            \ %pc
+            \ kitty +kitten icat --clear >/dev/tty </dev/tty %N
+        fileviewer *.pdf
+            \ pdftoppm %c /tmp/abc -png -f 1 > /dev/null && kitty +kitten icat --silent --transfer-mode=stream --place=%pwx%ph@%pxx%py /tmp/abc-1.png >/dev/tty </dev/tty %N
+            \ %pc
+            \ kitty +kitten icat --clear --silent >/dev/tty </dev/tty %N
+    else
+        " Local: use scale-up mode for crisp image previews
+        fileviewer *.png,*.jpg,*.jpeg,*.gif,*.webp,*.tga,*.bmp,*.svg,*.tif,*.tiff
+            \ kitty +kitten icat --silent --scale-up --place=%pwx%ph@%pxx%py %c >/dev/tty </dev/tty %N
+            \ %pc
+            \ kitty +kitten icat --clear >/dev/tty </dev/tty %N
+        fileviewer *.pdf
+            \ pdftoppm %c /tmp/abc -png -f 1 > /dev/null && kitty +kitten icat --silent --scale-up --place=%pwx%ph@%pxx%py /tmp/abc-1.png >/dev/tty </dev/tty %N
+            \ %pc
+            \ kitty +kitten icat --clear --silent >/dev/tty </dev/tty %N
+    endif
+
+    " Default file handler (cursor when inside VSCode, else macOS open)
+    if $isVSCode == '1'
+        filetype * cursor
+    else
+        filetype * open
+    endif
+
+    " Default text preview with bat (syntax highlighting)
+    fileviewer * bat --color=always --style=plain --paging=never --line-range=:2000 %c
+
+endif
+
+
+" ==============================================================================
+" END OF CONFIGURATION
+" ==============================================================================

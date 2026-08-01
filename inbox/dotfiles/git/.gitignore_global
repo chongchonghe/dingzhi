@@ -1,0 +1,15 @@
+# AGENTS.md
+# CLAUDE.md
+
+.devtest.yaml
+.vscode/
+.vscode
+gitignore-*
+*.gitignored
+builddir
+.venv/
+
+docs-chongchong
+
+
+**/.claude/settings.local.json
