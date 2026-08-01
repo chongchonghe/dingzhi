@@ -1514,7 +1514,7 @@ git commit -m "feat: system check and backend bootstrap"
 - Produces:
   - `DINGZHI_GROUPS` — space-separated selected group names
   - `DINGZHI_SHELLS` — space-separated, subset of `zsh bash`
-  - State file `$DINGZHI_STATE/choices` (where `DINGZHI_STATE` is `${XDG_STATE_HOME:-$HOME/.local/state}/dingzhi`), containing `GROUPS=` and `SHELLS=` lines; re-read on subsequent runs so re-installs are non-interactive
+  - State file `$DINGZHI_STATE/choices` (where `DINGZHI_STATE` is `${XDG_STATE_HOME:-$HOME/.local/state}/dingzhi`), containing `DINGZHI_GROUPS=` and `DINGZHI_SHELLS=` lines — prefixed because bash has a builtin `GROUPS` array that a bare `GROUPS=` would collide with; re-read on subsequent runs so re-installs are non-interactive
   - `~/.gitconfig.local` containing a `[user]` section
 
 - [ ] **Step 1: Write the failing test**
