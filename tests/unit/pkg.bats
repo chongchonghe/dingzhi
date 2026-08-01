@@ -68,6 +68,28 @@ setup() {
     [ "$output" = "delta" ]
 }
 
+@test "pkg_binary knows the names that differ from the package" {
+    source "$DINGZHI_PATH/lib/detect.sh"
+    source "$DINGZHI_PATH/lib/pkg.sh"
+    # A wrong answer here means pkg_installed is always false and the app
+    # reinstalls on every run.
+    [ "$(pkg_binary ripgrep)" = "rg" ]
+    [ "$(pkg_binary neovim)" = "nvim" ]
+    [ "$(pkg_binary github-cli)" = "gh" ]
+    [ "$(pkg_binary trash-cli)" = "trash-put" ]
+    [ "$(pkg_binary git-delta)" = "delta" ]
+    [ "$(pkg_binary poppler)" = "pdftotext" ]
+    [ "$(pkg_binary webp)" = "cwebp" ]
+    [ "$(pkg_binary tlrc)" = "tldr" ]
+}
+
+@test "imagemagick accepts either the v7 or v6 binary name" {
+    source "$DINGZHI_PATH/lib/detect.sh"
+    source "$DINGZHI_PATH/lib/pkg.sh"
+    run pkg_binaries imagemagick
+    [ "$output" = "magick convert" ]
+}
+
 @test "pkg_binary defaults to the generic name" {
     source "$DINGZHI_PATH/lib/detect.sh"
     source "$DINGZHI_PATH/lib/pkg.sh"

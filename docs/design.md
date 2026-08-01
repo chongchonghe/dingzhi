@@ -88,7 +88,7 @@ dingzhi/
 
 ### The `pkg` abstraction
 
-The technical crux is three install backends × ~34 apps. Rather than branching on
+The technical crux is three install backends × ~33 apps. Rather than branching on
 platform inside every app script (as `~/tools` does today), `lib/pkg.sh` exposes:
 
 - `pkg_install <name>` — resolve `<name>` for the active backend and install it
@@ -101,7 +101,7 @@ identity. For example `fd` is `fd` on Homebrew, `fd-find` on apt, and
 Packages that must be compiled on the no-root path (tmux, stow, cmake, vim) route
 to `pixi global install` instead of eget.
 
-Consequence: adding apt support for every app is a table edit, not 34 script
+Consequence: adding apt support for every app is a table edit, not 33 script
 edits. Each `apps/<name>/install.sh` reduces to `pkg_install <name>` followed by
 whatever config or symlink work that app needs.
 
@@ -146,14 +146,14 @@ accepts all defaults and skips the git identity prompt.
 
 ## Contents
 
-### Apps (34)
+### Apps (33)
 
 Each table row below is one **group**, and groups are the unit `choices.sh`
 offers at first run. All groups are selected by default.
 
 | Group | Apps |
 |---|---|
-| Core CLI | `bat` `eza` `fd` `fzf` `ripgrep` `zoxide` `git-delta` `jq` `tlrc` `trash-cli` `stow` `thefuck` `highlight` |
+| Core CLI | `bat` `eza` `fd` `fzf` `ripgrep` `zoxide` `git-delta` `jq` `tlrc` `trash-cli` `stow` `thefuck` |
 | Terminal | `kitty` `tmux` |
 | Editors | `neovim` `vim` |
 | Git | `git` (config only) `lazygit` `gh` |
@@ -166,6 +166,11 @@ offers at first run. All groups are selected by default.
 Both shells ship: zsh is the default and the mature config, but bash matters on
 HPC systems where the login shell cannot be changed. `choices.sh` asks which to
 configure; the answer determines which init file gets the source line.
+
+`highlight` was dropped during implementation: it is not packaged on
+conda-forge, so the no-root backend cannot install it, and nothing depends on
+it — `bat`, which dingzhi already ships, covers syntax-highlighted output and
+is what the vifm previewer actually calls.
 
 **Excluded:** `quokka` `pymses` `yt` `yt_idv` `yt-studio` `gravidy` `mcluster`
 `petar` `radmc3d` `ramtools` `skirt` `globusconnectpersonal` (astro/HPC);
@@ -234,7 +239,7 @@ distribution should not ship a command that does not work on first use.
 Their dependencies therefore ship as a **media** group: `pandoc` `poppler`
 `imagemagick` `ffmpeg` `pngquant` `jpegoptim` `webp`. All seven are available on
 Homebrew, apt, and conda-forge, so the group installs on all three backends.
-This brings the app total to 34.
+This brings the app total to 33.
 
 ### Not shipped
 

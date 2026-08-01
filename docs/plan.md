@@ -3853,7 +3853,7 @@ Mocha, all configured to work together.
 
 | Group | Apps |
 |---|---|
-| core | bat, eza, fd, fzf, ripgrep, zoxide, delta, jq, tlrc, trash-cli, stow, thefuck, highlight |
+| core | bat, eza, fd, fzf, ripgrep, zoxide, delta, jq, tlrc, trash-cli, stow, thefuck |
 | terminal | kitty, tmux |
 | editors | neovim, vim |
 | git | git, lazygit, gh |

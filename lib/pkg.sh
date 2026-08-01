@@ -30,7 +30,6 @@ tlrc
 trash-cli
 stow
 thefuck
-highlight
 tmux
 neovim
 vim
@@ -90,7 +89,7 @@ pkg_resolve() {
 
         tlrc:brew)           echo "tlrc" ;;
         tlrc:apt)            echo "" ;;
-        tlrc:noroot)         echo "eget:tldr-pages/tlrc|x86_64-unknown-linux-musl.tar.gz" ;;
+        tlrc:noroot)         echo "eget:tldr-pages/tlrc|x86_64-unknown-linux-musl.tar.gz|tldr" ;;
 
         trash-cli:brew)      echo "trash-cli" ;;
         trash-cli:apt)       echo "trash-cli" ;;
@@ -101,12 +100,9 @@ pkg_resolve() {
         stow:noroot)         echo "pixi:stow" ;;
 
         thefuck:brew)        echo "thefuck" ;;
-        thefuck:apt)         echo "" ;;
+        thefuck:apt)         echo "uv:thefuck" ;;
         thefuck:noroot)      echo "uv:thefuck" ;;
 
-        highlight:brew)      echo "highlight" ;;
-        highlight:apt)       echo "highlight" ;;
-        highlight:noroot)    echo "pixi:highlight" ;;
 
         # ---- terminal ----
         # tmux 3.5+ has a Landlock sandbox bug that crashes on some kernels.
@@ -131,7 +127,7 @@ pkg_resolve() {
 
         lazygit:brew)        echo "lazygit" ;;
         lazygit:apt)         echo "" ;;
-        lazygit:noroot)      echo "eget:jesseduffield/lazygit|Linux_x86_64.tar.gz" ;;
+        lazygit:noroot)      echo "eget:jesseduffield/lazygit|linux_x86_64.tar.gz|lazygit" ;;
 
         github-cli:brew)     echo "gh" ;;
         # Needs a third-party apt repository; the release binary avoids that.
@@ -190,22 +186,40 @@ pkg_resolve() {
     esac
 }
 
-# pkg_binary <generic> -> the command the package provides
-pkg_binary() {
+# pkg_binaries <generic> -> every command name that would satisfy this package,
+# most-preferred first. ImageMagick is the reason this returns a list: version 7
+# provides `magick`, but Ubuntu 24.04 still ships version 6, whose binary is
+# `convert`. Treating only one as valid would report a working install missing.
+pkg_binaries() {
     case "$1" in
         git-delta)   echo "delta" ;;
         github-cli)  echo "gh" ;;
+        ripgrep)     echo "rg" ;;
+        neovim)      echo "nvim" ;;
         poppler)     echo "pdftotext" ;;
         webp)        echo "cwebp" ;;
-        imagemagick) echo "magick" ;;
+        imagemagick) echo "magick convert" ;;
         trash-cli)   echo "trash-put" ;;
         tlrc)        echo "tldr" ;;
         *)           echo "$1" ;;
     esac
 }
 
+# pkg_binary <generic> -> the preferred command name.
+pkg_binary() {
+    # Word splitting is the point: pkg_binaries returns a space-separated list.
+    # shellcheck disable=SC2046
+    set -- $(pkg_binaries "$1")
+    echo "$1"
+}
+
 pkg_installed() {
-    command -v "$(pkg_binary "$1")" >/dev/null 2>&1
+    local b
+    # shellcheck disable=SC2046
+    for b in $(pkg_binaries "$1"); do
+        command -v "$b" >/dev/null 2>&1 && return 0
+    done
+    return 1
 }
 
 # Install one package via the active backend. Idempotent.
@@ -224,10 +238,18 @@ pkg_install() {
     fi
 
     step "installing $name ($spec)"
-    case "$DINGZHI_BACKEND" in
-        brew)   brew install "$spec" ;;
-        apt)    sudo apt-get install -y "$spec" ;;
-        noroot) _pkg_install_noroot "$spec" ;;
+    case "$spec" in
+        eget:*|pixi:*|uv:*)
+            # Kind-prefixed specs are backend-agnostic.
+            _pkg_install_noroot "$spec"
+            ;;
+        *)
+            case "$DINGZHI_BACKEND" in
+                brew)   brew install "$spec" ;;
+                apt)    sudo apt-get install -y "$spec" ;;
+                noroot) _pkg_install_noroot "$spec" ;;
+            esac
+            ;;
     esac
 }
 
@@ -329,16 +351,20 @@ pkg_remove() {
     [ -n "$spec" ] || { warn "no $DINGZHI_BACKEND mapping for '$name'"; return 1; }
 
     step "removing $name"
-    case "$DINGZHI_BACKEND" in
-        brew)   brew uninstall "$spec" ;;
-        apt)    sudo apt-get remove -y "$spec" ;;
-        noroot)
+    case "$spec" in
+        eget:*|pixi:*|uv:*)
             kind="${spec%%:*}"
             payload="${spec#*:}"
             case "$kind" in
                 pixi) pixi global uninstall "${payload%%==*}" ;;
                 uv)   uv tool uninstall "$payload" ;;
                 eget) rm -f "$DINGZHI_BIN/$(pkg_binary "$name")" ;;
+            esac
+            ;;
+        *)
+            case "$DINGZHI_BACKEND" in
+                brew) brew uninstall "$spec" ;;
+                apt)  sudo apt-get remove -y "$spec" ;;
             esac
             ;;
     esac
