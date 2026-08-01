@@ -38,16 +38,23 @@ setup() {
 }
 
 @test "install then uninstall then install leaves the app working" {
+    # Removal differs by backend — apt-get remove versus deleting the binary
+    # eget dropped in DINGZHI_BIN — so this runs on whichever image it is in.
     source "$DINGZHI_PATH/lib/detect.sh"
     source "$DINGZHI_PATH/lib/ui.sh"
     source "$DINGZHI_PATH/lib/pkg.sh"
     source "$DINGZHI_PATH/lib/link.sh"
-    sudo apt-get update -qq 2>/dev/null
+    source "$DINGZHI_PATH/install/bootstrap.sh" >/dev/null 2>&1
+    export PATH="$DINGZHI_BIN:$HOME/.pixi/bin:$HOME/.local/bin:$PATH"
+
     ( . "$DINGZHI_PATH/apps/jq/install.sh" ) >/dev/null 2>&1
-    command -v jq >/dev/null
+    command -v jq >/dev/null || { echo "install failed on $DINGZHI_BACKEND"; return 1; }
+
     ( . "$DINGZHI_PATH/apps/jq/uninstall.sh" ) >/dev/null 2>&1
+    hash -r 2>/dev/null || true
     run command -v jq
-    [ "$status" -ne 0 ]
+    [ "$status" -ne 0 ] || { echo "uninstall left jq behind on $DINGZHI_BACKEND"; return 1; }
+
     ( . "$DINGZHI_PATH/apps/jq/install.sh" ) >/dev/null 2>&1
-    command -v jq >/dev/null
+    command -v jq >/dev/null || { echo "reinstall failed on $DINGZHI_BACKEND"; return 1; }
 }
