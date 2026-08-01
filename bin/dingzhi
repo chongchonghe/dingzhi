@@ -1,0 +1,181 @@
+#!/usr/bin/env bash
+# dingzhi control command.
+#
+#   dingzhi            interactive menu
+#   dingzhi install    install apps that are not yet present
+#   dingzhi remove     remove apps that provide an uninstall script
+#   dingzhi update     git pull and re-run the installer
+#   dingzhi doctor     report what is installed, linked, and configured
+
+set -e
+
+# Locate the checkout from this script, following symlinks so `dingzhi` works
+# when bin/ is on PATH or the command has been linked elsewhere.
+_self="${BASH_SOURCE[0]}"
+while [ -L "$_self" ]; do
+    _link="$(readlink "$_self")"
+    case "$_link" in
+        /*) _self="$_link" ;;
+        *)  _self="$(cd "$(dirname "$_self")" && pwd)/$_link" ;;
+    esac
+done
+DINGZHI_PATH="$(cd "$(dirname "$_self")/.." && pwd)"
+export DINGZHI_PATH
+unset _self _link
+
+# shellcheck source=../install.sh
+. "$DINGZHI_PATH/install.sh" --lib-only
+
+usage() {
+    cat <<'EOF'
+dingzhi — manage your dingzhi installation
+
+Usage:
+  dingzhi              open the interactive menu
+  dingzhi install      install apps that are not yet present
+  dingzhi remove       remove apps that provide an uninstall script
+  dingzhi update       git pull and re-run the installer
+  dingzhi doctor       report installed apps, linked configs, and shell setup
+  dingzhi --help       show this message
+EOF
+}
+
+cmd_install() {
+    local candidates="" app chosen
+    for app in $(dingzhi_all_apps); do
+        pkg_installed "$app" || candidates="$candidates $app"
+    done
+
+    if [ -z "$candidates" ]; then
+        say "Everything is already installed."
+        return 0
+    fi
+
+    # shellcheck disable=SC2086
+    chosen="$(choose_multi "Install which apps?" "" $candidates)"
+    [ -n "$chosen" ] || { say "Nothing selected."; return 0; }
+
+    for app in $chosen; do
+        step "$app"
+        ( . "$DINGZHI_PATH/apps/$app/install.sh" ) || warn "$app failed"
+    done
+}
+
+cmd_remove() {
+    # Only offer apps we can actually undo. An app without an uninstall.sh is
+    # install-only, and the menu says so by omission.
+    local removable="" app chosen
+    for app in $(dingzhi_all_apps); do
+        if [ -f "$DINGZHI_PATH/apps/$app/uninstall.sh" ] && pkg_installed "$app"; then
+            removable="$removable $app"
+        fi
+    done
+
+    if [ -z "$removable" ]; then
+        say "No installed app provides an uninstall script."
+        return 0
+    fi
+
+    # shellcheck disable=SC2086
+    chosen="$(choose_multi "Remove which apps?" "" $removable)"
+    [ -n "$chosen" ] || { say "Nothing selected."; return 0; }
+
+    # shellcheck disable=SC2086
+    confirm "Really remove:$(printf ' %s' $chosen)?" || { say "Cancelled."; return 0; }
+
+    for app in $chosen; do
+        step "$app"
+        ( . "$DINGZHI_PATH/apps/$app/uninstall.sh" ) || warn "$app removal failed"
+    done
+}
+
+cmd_update() {
+    say "Updating dingzhi"
+    git -C "$DINGZHI_PATH" pull --ff-only
+    say "Re-running the installer"
+    bash "$DINGZHI_PATH/install.sh"
+}
+
+cmd_doctor() {
+    local app problems=0 mark rc found=0
+
+    say "dingzhi $(cat "$DINGZHI_PATH/version")"
+    step "path:    $DINGZHI_PATH"
+    step "os:      $DINGZHI_OS/$DINGZHI_ARCH"
+    step "backend: $DINGZHI_BACKEND"
+    step "bindir:  $DINGZHI_BIN"
+    echo
+
+    say "Applications"
+    for app in $(dingzhi_all_apps); do
+        if pkg_installed "$app"; then
+            mark="ok     "
+        elif [ -z "$(pkg_resolve "$app" "$DINGZHI_BACKEND")" ] \
+             && [ -n "$(pkg_resolve "$app" brew)" ]; then
+            # Documented as unavailable on this backend, not a problem to fix.
+            mark="n/a    "
+        else
+            mark="MISSING"
+            problems=$((problems + 1))
+        fi
+        printf '    %s  %-14s (%s)\n' "$mark" "$app" "$(dingzhi_app_group "$app")"
+    done
+    echo
+
+    say "Shell integration"
+    for rc in "$HOME/.zshrc" "$HOME/.bashrc"; do
+        if [ -f "$rc" ] && grep -q 'dingzhi/configs/shell/init.sh' "$rc"; then
+            printf '    ok       %s\n' "$rc"
+            found=1
+        fi
+    done
+    if [ "$found" -eq 0 ]; then
+        printf '    MISSING  no shell rc sources dingzhi\n'
+        problems=$((problems + 1))
+    fi
+    echo
+
+    say "Git identity"
+    if [ -f "$HOME/.gitconfig.local" ]; then
+        printf '    ok       %s/.gitconfig.local\n' "$HOME"
+    else
+        printf '    MISSING  %s/.gitconfig.local\n' "$HOME"
+        problems=$((problems + 1))
+    fi
+
+    echo
+    if [ "$problems" -eq 0 ]; then
+        say "No problems found."
+        return 0
+    fi
+    warn "$problems problem(s) found."
+    return 1
+}
+
+cmd_menu() {
+    local choice
+    if ! command -v gum >/dev/null 2>&1; then
+        usage
+        return 0
+    fi
+    choice="$(gum choose --header "dingzhi" \
+        "Install apps" "Remove apps" "Update dingzhi" "Doctor" "Quit")" || return 0
+
+    case "$choice" in
+        "Install apps")   cmd_install ;;
+        "Remove apps")    cmd_remove ;;
+        "Update dingzhi") cmd_update ;;
+        "Doctor")         cmd_doctor ;;
+        *)                : ;;
+    esac
+}
+
+case "${1:-}" in
+    install) cmd_install ;;
+    remove)  cmd_remove ;;
+    update)  cmd_update ;;
+    doctor)  cmd_doctor ;;
+    -h|--help) usage ;;
+    "")      cmd_menu ;;
+    *)       warn "unknown subcommand: $1"; usage; exit 1 ;;
+esac

@@ -1,7 +1,14 @@
 #!/usr/bin/env bash
 # group: misc
-# cheat itself is a Go binary with no packaging story we rely on; what dingzhi
-# ships is the config and the community cheatsheets.
+# Not in Ubuntu's repositories, so apt falls back to the release binary.
+if pkg_installed cheat; then
+    skip "cheat already installed"
+elif [ "$DINGZHI_BACKEND" = "apt" ]; then
+    pkg_install_release cheat
+else
+    pkg_install cheat
+fi
+
 manage_symlink "$DINGZHI_PATH/configs/cheat/conf.yml" \
     "$HOME/.config/cheat/conf.yml" "cheat config"
 

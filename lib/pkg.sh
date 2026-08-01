@@ -47,6 +47,7 @@ ffmpeg
 pngquant
 jpegoptim
 webp
+cheat
 EOF
 }
 
@@ -183,6 +184,12 @@ pkg_resolve() {
         webp:brew)           echo "webp" ;;
         webp:apt)            echo "webp" ;;
         webp:noroot)         echo "pixi:libwebp" ;;
+
+        # ---- misc ----
+        cheat:brew)          echo "cheat" ;;
+        # Not in Ubuntu's repositories.
+        cheat:apt)           echo "" ;;
+        cheat:noroot)        echo "eget:cheat/cheat|cheat-linux-amd64.gz" ;;
 
         *) echo "" ;;
     esac
