@@ -65,13 +65,9 @@ if [[ $# -eq 0 ]]; then
     set -- /bin/bash
 fi
 
-# While dingzhi still lives inside the tools repo, mount the spec and plan
-# read-only at ~/plan so an agent working in the container can read them.
-# Harmless once dingzhi is published standalone: the directory just won't exist.
-PARENT_DOCS="$(cd "$REPO_ROOT/../.." 2>/dev/null && pwd)/docs/superpowers"
-if [[ -d "$PARENT_DOCS" ]]; then
-    MOUNTS+=(-v "$PARENT_DOCS:/home/dev/plan:ro")
-fi
+# The design and plan live in docs/ inside this repository, so they arrive with
+# the working-tree mount below. There is deliberately no second mount for them:
+# an agent that starts the container any other way must still find its spec.
 
 # Only allocate a TTY when we actually have one, so this works from a script
 # or a CI job as well as from a terminal.

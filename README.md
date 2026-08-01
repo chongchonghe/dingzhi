@@ -3,11 +3,11 @@
 Turn a fresh macOS or Linux machine into a fully configured terminal
 development environment with one command.
 
-Status: under development. The design and implementation plan live in the
-parent repository:
+Status: under development.
 
-- `docs/superpowers/specs/2026-08-01-dingzhi-design.md`
-- `docs/superpowers/plans/2026-08-01-dingzhi.md`
+- Design: [`docs/design.md`](docs/design.md)
+- Implementation plan: [`docs/plan.md`](docs/plan.md)
+- Working inside the test container: [`start-in-docker.md`](start-in-docker.md)
 
 ## Development
 

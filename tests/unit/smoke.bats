@@ -50,6 +50,15 @@ setup() {
     done
 }
 
+@test "the governing documents travel with the repository" {
+    # These must be reachable from the working tree alone. Anything that
+    # depends on a second mount is lost the moment someone starts the
+    # container with a plain `docker run`.
+    [ -f "$DINGZHI_PATH/docs/design.md" ]
+    [ -f "$DINGZHI_PATH/docs/plan.md" ]
+    [ -f "$DINGZHI_PATH/start-in-docker.md" ]
+}
+
 @test "ssh has a usable home directory" {
     [ -d "/home/dev/.ssh" ]
     [ "$(stat -c '%a' /home/dev/.ssh)" = "700" ]

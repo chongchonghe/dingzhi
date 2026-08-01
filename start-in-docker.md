@@ -26,16 +26,18 @@ you where you are, what the rules are, and how to proceed.
 
 ## The documents that govern this work
 
-Mounted read-only at `~/plan`:
+They live in the repository, at `~/dingzhi/docs/`:
 
-- Spec: `~/plan/specs/2026-08-01-dingzhi-design.md`
-- Plan: `~/plan/plans/2026-08-01-dingzhi.md`
+- Spec: `~/dingzhi/docs/design.md`
+- Plan: `~/dingzhi/docs/plan.md`
+
+They are inside the repo on purpose. The working tree is the one thing every
+way of starting this container mounts, so the governing documents travel with
+it — no separate mount to forget, and no launch method that silently drops them.
 
 Read the plan first. **Do not invent requirements from this file alone** — it is
-orientation, not the spec.
-
-If `~/plan` is empty, the mount did not happen; stop and say so rather than
-guessing at the design.
+orientation, not the spec. If `~/dingzhi/docs/plan.md` is missing, stop and say
+so rather than guessing at the design.
 
 ## Rules
 
@@ -151,7 +153,7 @@ or the working tree will never be clean again.
 cd ~/dingzhi
 git log --oneline          # what is already done
 bats tests/unit            # current state — should be green
-less ~/plan/plans/2026-08-01-dingzhi.md
+less ~/dingzhi/docs/plan.md
 ```
 
 Then start at the first task with unchecked steps. If everything through Task 1
