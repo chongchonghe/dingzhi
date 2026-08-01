@@ -10,6 +10,13 @@
 
 **Spec:** [`design.md`](design.md)
 
+**Status: complete.** All 18 tasks are implemented and committed, tagged
+`v0.1.0`. 152 unit tests pass on all three container images and the end-to-end
+idempotency check passes on both Linux backends. The step checkboxes below are
+left unticked as a record of the plan as written; `git log` is the record of
+what was done, and several steps changed during implementation — those
+deviations are described in the commit messages.
+
 ---
 
 ## Global Constraints
